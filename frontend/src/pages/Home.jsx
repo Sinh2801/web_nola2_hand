@@ -206,7 +206,7 @@ export default function Home() {
               <div style="background: linear-gradient(to right, #ff7a00, white, #3b82f6); height: 100%; display: flex; align-items: center; justify-content: center;">
                 <div style="text-align: center; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                   <h1 style="font-size: 48px; font-weight: bold; color: #1f2937; margin-bottom: 20px;">nola2hand Marketplace</h1>
-                  <p style="font-size: 20px; color: #4b5563; margin-bottom: 30px;">Mua bán đồ dùng cũ dành riêng cho sinh viên Đại học Đại Nam</p>
+                  <p style="font-size: 20px; color: #4b5563; margin-bottom: 30px;">Mua bán đồ </p>
                   <div style="display: flex; gap: 15px; justify-content: center;">
                     <a href="/products" style="background: white; color: #3b82f6; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">Xem sản phẩm</a>
                     <a href="/register" style="background: #f97316; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">Đăng ký ngay</a>
@@ -333,8 +333,8 @@ export default function Home() {
                       {semanticAiEnabled && product.aiScore != null && (
                         <div className="absolute top-1 left-1 z-10">
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${product.aiScore >= 70 ? 'bg-purple-600 text-white'
-                              : product.aiScore >= 50 ? 'bg-purple-400 text-white'
-                                : 'bg-gray-400 text-white'
+                            : product.aiScore >= 50 ? 'bg-purple-400 text-white'
+                              : 'bg-gray-400 text-white'
                             }`}>
                             {product.aiScore}%
                           </span>

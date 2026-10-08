@@ -26,7 +26,7 @@ export default function Help() {
         },
         {
           question: 'Dịch vụ Shipper Sinh viên (nola2hand Shipper) là gì?',
-          answer: 'Đây là đội ngũ vận chuyển nội khu được vận hành bởi chính các bạn sinh viên Đại học Đại Nam. Khi đặt hàng, bạn có thể chọn hình thức giao nhận qua Shipper nội bộ để được giao hàng tận lớp học, giảng đường hoặc phòng ký túc xá với chi phí cực kỳ ưu đãi và tốc độ nhanh chóng.'
+          answer: 'Đây là đội ngũ vận chuyển nội khu được vận hành bởi chính các bạn sinh viên Đại học Nông Lâm TPHCM. Khi đặt hàng, bạn có thể chọn hình thức giao nhận qua Shipper nội bộ để được giao hàng tận lớp học, giảng đường hoặc phòng ký túc xá với chi phí cực kỳ ưu đãi và tốc độ nhanh chóng.'
         }
       ]
     },
@@ -35,7 +35,7 @@ export default function Help() {
       items: [
         {
           question: 'Yêu cầu đối với tài khoản người đăng bán?',
-          answer: 'Tất cả người dùng đăng bán sản phẩm bắt buộc phải là sinh viên, cựu sinh viên, hoặc cán bộ giảng viên thuộc Đại học Đại Nam và được xác thực qua email tên miền @nola2hand.edu.vn hoặc mã số sinh viên.'
+          answer: 'Tất cả người dùng đăng bán sản phẩm bắt buộc phải là sinh viên, cựu sinh viên, hoặc cán bộ giảng viên thuộc Đại học Nông Lâm TPHCM và được xác thực qua email tên miền @nola2hand.edu.vn hoặc mã số sinh viên.'
         },
         {
           question: 'Những mặt hàng nào được phép và bị cấm đăng bán?',
@@ -69,7 +69,7 @@ export default function Help() {
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 text-white shadow-xl shadow-orange-500/10 p-8 md:p-12 mb-8">
           <div className="absolute -top-12 -right-12 w-64 h-64 rounded-full bg-white/10 blur-2xl"></div>
           <div className="absolute -bottom-8 -left-8 w-48 h-48 rounded-full bg-yellow-300/10 blur-xl"></div>
-          
+
           <div className="relative z-10 text-center max-w-2xl mx-auto">
             <span className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider text-orange-50 mb-4 inline-block">
               📚 nola2hand Help Center
@@ -78,7 +78,7 @@ export default function Help() {
               Trung Tâm Hỗ Trợ nola2hand
             </h1>
             <p className="text-sm md:text-base text-orange-50/90 leading-relaxed">
-              Giải đáp thắc mắc, hướng dẫn giao dịch an toàn và hỗ trợ kỹ thuật nhanh chóng dành riêng cho cộng đồng sinh viên Đại học Đại Nam.
+              Giải đáp thắc mắc, hướng dẫn giao dịch an toàn và hỗ trợ kỹ thuật nhanh chóng dành riêng cho cộng đồng sinh viên Đại học Nông Lâm TPHCM
             </p>
           </div>
         </div>
@@ -136,12 +136,12 @@ export default function Help() {
               <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
                 {section.title}
               </h3>
-              
+
               <div className="space-y-3">
                 {section.items.map((item, itemIdx) => {
                   const key = `${secIdx}_${itemIdx}`
                   const isOpen = !!openFaq[key]
-                  
+
                   return (
                     <div
                       key={itemIdx}
@@ -156,7 +156,7 @@ export default function Help() {
                           ▼
                         </span>
                       </button>
-                      
+
                       {isOpen && (
                         <div className="p-4 bg-orange-50/20 dark:bg-gray-800/30 text-sm text-gray-600 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 leading-relaxed">
                           {item.answer}
@@ -176,7 +176,7 @@ export default function Help() {
             <span>🔗</span> Liên kết truy cập nhanh
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Link 
+            <Link
               to="/"
               className="p-4 border border-gray-100 dark:border-gray-800 rounded-xl hover:border-orange-500/40 hover:bg-orange-50/5 dark:hover:bg-gray-800/50 transition-all group"
             >
@@ -185,7 +185,7 @@ export default function Help() {
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Quay lại trang chủ mua sắm của sinh viên nola2hand</div>
             </Link>
-            <Link 
+            <Link
               to="/products"
               className="p-4 border border-gray-100 dark:border-gray-800 rounded-xl hover:border-orange-500/40 hover:bg-orange-50/5 dark:hover:bg-gray-800/50 transition-all group"
             >
@@ -194,7 +194,7 @@ export default function Help() {
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Xem toàn bộ mặt hàng cũ, giáo trình đang bán</div>
             </Link>
-            <Link 
+            <Link
               to="/create-product"
               className="p-4 border border-gray-100 dark:border-gray-800 rounded-xl hover:border-orange-500/40 hover:bg-orange-50/5 dark:hover:bg-gray-800/50 transition-all group"
             >
@@ -203,7 +203,7 @@ export default function Help() {
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Đăng sản phẩm mới để nhượng lại cho người khác</div>
             </Link>
-            <Link 
+            <Link
               to="/feedback"
               className="p-4 border border-gray-100 dark:border-gray-800 rounded-xl hover:border-orange-500/40 hover:bg-orange-50/5 dark:hover:bg-gray-800/50 transition-all group"
             >

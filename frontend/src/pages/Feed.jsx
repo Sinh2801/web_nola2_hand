@@ -56,7 +56,7 @@ export default function Feed() {
             {/* Background elements */}
             <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-xl"></div>
             <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-yellow-300/15 blur-lg"></div>
-            
+
             <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <div className="flex items-center space-x-2 mb-2">
@@ -67,13 +67,13 @@ export default function Feed() {
                   <span className="text-xs text-orange-100 font-medium">Đang hoạt động</span>
                 </div>
                 <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white mb-2 drop-shadow-sm">
-                  Cộng Đồng Sinh Viên Đại Nam
+                  Cộng Đồng
                 </h1>
                 <p className="text-sm text-orange-55 max-w-md leading-relaxed">
                   Nơi kết nối, chia sẻ khoảnh khắc học đường và trao đổi giáo trình, đồ dùng học tập cùng bạn bè nola2hand.
                 </p>
               </div>
-              
+
               {user && (
                 <div className="flex items-center gap-3 shrink-0 self-start md:self-auto">
                   <button
@@ -96,21 +96,19 @@ export default function Feed() {
             <div className="mb-6 flex bg-gray-100 dark:bg-gray-800/80 p-1 rounded-xl max-w-xs shadow-inner">
               <button
                 onClick={() => setFeedMode('all')}
-                className={`flex-1 text-center py-2 rounded-lg text-sm font-semibold transition-all ${
-                  feedMode === 'all'
+                className={`flex-1 text-center py-2 rounded-lg text-sm font-semibold transition-all ${feedMode === 'all'
                     ? 'bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                }`}
+                  }`}
               >
                 Tất cả
               </button>
               <button
                 onClick={() => setFeedMode('following')}
-                className={`flex-1 text-center py-2 rounded-lg text-sm font-semibold transition-all ${
-                  feedMode === 'following'
+                className={`flex-1 text-center py-2 rounded-lg text-sm font-semibold transition-all ${feedMode === 'following'
                     ? 'bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                }`}
+                  }`}
               >
                 Đang theo dõi
               </button>
@@ -159,7 +157,7 @@ export default function Feed() {
               {posts.map(post => (
                 <PostCard key={post._id} post={post} />
               ))}
-              
+
               {hasMore && (
                 <div className="text-center py-6">
                   <button
@@ -250,7 +248,7 @@ export default function Feed() {
                   <span>Không đăng tin liên quan đến các mặt hàng cấm hoặc vi phạm quy chế học tập.</span>
                 </li>
               </ul>
-              
+
               <div className="mt-4 pt-3 border-t border-orange-200/40 dark:border-gray-700/50">
                 <Link
                   to="/help"
@@ -272,9 +270,9 @@ export default function Feed() {
               </div>
               <div className="space-y-2.5">
                 {[
-                  { name: 'CLB Tình nguyện nola2hand', members: '120+ thành viên', icon: '🎨' },
-                  { name: 'CLB Guitar & Nghệ thuật', members: '85+ thành viên', icon: '🎸' },
-                  { name: 'CLB Thể thao Đại Nam', members: '200+ thành viên', icon: '⚽' }
+                  { name: '  nola2hand', members: '120+ thành viên', icon: '🎨' },
+                  { name: ' Guitar & Nghệ thuật', members: '85+ thành viên', icon: '🎸' },
+
                 ].map((club, idx) => (
                   <div key={idx} className="flex items-center gap-2 p-1 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <span className="text-base w-7 h-7 flex items-center justify-center bg-orange-100 dark:bg-orange-950/40 rounded-lg text-orange-600 dark:text-orange-350">{club.icon}</span>

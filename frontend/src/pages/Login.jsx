@@ -34,14 +34,14 @@ export default function Login() {
       <div className="hidden md:flex md:w-1/2 bg-indigo-950 relative overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0 z-0">
-          <img 
-            src="/banner.png" 
-            alt="nola2hand Banner" 
+          <img
+            src="/banner.png"
+            alt="nola2hand Banner"
             className="w-full h-full object-cover opacity-20"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-indigo-950 via-indigo-900/80 to-indigo-900/40"></div>
         </div>
-        
+
         {/* Decorative elements */}
         <div className="absolute top-0 left-0 w-full h-full z-10 overflow-hidden pointer-events-none">
           <div className="absolute -top-32 -left-32 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl"></div>
@@ -51,8 +51,8 @@ export default function Login() {
         {/* Content */}
         <div className="relative z-20 flex flex-col justify-center px-12 lg:px-24 text-white w-full h-full">
           <Link to="/" className="absolute top-8 left-12 lg:left-24 flex items-center gap-2 hover:opacity-80 transition-opacity">
-             <span className="text-white/70">←</span>
-             <span className="text-white/70 text-sm font-medium uppercase tracking-wider">Trang chủ</span>
+            <span className="text-white/70">←</span>
+            <span className="text-white/70 text-sm font-medium uppercase tracking-wider">Trang chủ</span>
           </Link>
 
           <div className="flex items-center gap-4 mb-8 mt-12">
@@ -64,9 +64,9 @@ export default function Login() {
             </h1>
           </div>
           <h2 className="text-4xl lg:text-5xl font-extrabold mb-6 leading-[1.15]">
-            Chợ Đồ Cũ Sinh Viên <br/>
+            Chợ Đồ Cũ Sinh Viên <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-300">
-              Đại Nam University
+              Nông Lâm University
             </span>
           </h2>
           <p className="text-indigo-100 text-lg max-w-md leading-relaxed font-medium">
@@ -90,7 +90,7 @@ export default function Login() {
       {/* Right side - Login Form */}
       <div className="w-full md:w-1/2 flex items-center justify-center p-8 sm:p-12 lg:p-24 relative overflow-y-auto">
         <div className="max-w-md w-full space-y-8 relative z-10">
-          
+
           {/* Mobile Header */}
           <div className="md:hidden flex items-center justify-center gap-3 mb-8">
             <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
@@ -120,7 +120,7 @@ export default function Login() {
                 <span>{error}</span>
               </div>
             )}
-            
+
             <div className="space-y-5">
               <div>
                 <label htmlFor="email" className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Email sinh viên (nola2hand)</label>
@@ -140,7 +140,7 @@ export default function Login() {
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label htmlFor="password" className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Mật khẩu</label>
                 <div className="relative">
@@ -192,11 +192,11 @@ export default function Login() {
               </button>
             </div>
           </form>
-          
+
           {/* Mobile Branding (only visible on small screens) */}
           <div className="mt-12 md:hidden text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-              © {new Date().getFullYear()} nola2hand Marketplace.<br/>Dành riêng cho sinh viên Đại Nam.
+              © {new Date().getFullYear()} nola2hand Marketplace.<br /> cho mọi người.
             </p>
           </div>
         </div>
