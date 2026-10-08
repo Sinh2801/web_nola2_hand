@@ -1,0 +1,37 @@
+node_modules/
+.env
+*.log
+.DS_Store
+dist/
+build/
+uploads/
+.vscode/
+.idea/
+
+# Test coverage
+coverage/
+*.lcov
+
+# OS files
+Thumbs.db
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# Optional: Uncomment nếu không muốn push các file batch (giữ lại vì có thể hữu ích)
+# *.bat
+
+
+
+
+
+
+
+
