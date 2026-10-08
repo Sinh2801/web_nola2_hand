@@ -1,0 +1,70 @@
+import axios from 'axios'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+
+// Add token to requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    
+    // Don't set Content-Type for FormData, let the browser set it
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
+    
+    // Debug: log params cho products endpoint
+    if (config.url === '/products' && config.params?.category) {
+      console.log('API Request - Category:', config.params.category, 'Full params:', config.params)
+    }
+    
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+// Handle response errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const message = error.response?.data?.message || ''
+      
+      // Clear auth data
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      
+      // If user doesn't exist or account is deleted, show message
+      if (message.includes('không tồn tại') || message.includes('đã bị khóa') || message.includes('đã bị xóa')) {
+        // Small delay to ensure localStorage is cleared
+        setTimeout(() => {
+          alert('Tài khoản của bạn đã bị xóa hoặc không còn tồn tại. Vui lòng đăng ký lại.')
+          window.location.href = '/login'
+        }, 100)
+      } else {
+        // Regular unauthorized - redirect to login
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
+export default api
+
+
+
+
+
+
