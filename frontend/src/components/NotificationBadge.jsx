@@ -19,7 +19,7 @@ export default function NotificationBadge() {
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
-    
+
     // Set timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
       setLoading(false);
@@ -29,7 +29,7 @@ export default function NotificationBadge() {
     try {
       const res = await api.get('/notifications');
       clearTimeout(timeoutId);
-      
+
       if (res.data && res.data.success) {
         setNotifications(res.data.data || []);
         console.log('🔔 Fetched notifications:', res.data.data?.length || 0);
@@ -91,7 +91,7 @@ export default function NotificationBadge() {
         return [notification, ...prev];
       });
       setUnreadCount(prev => prev + 1);
-      
+
       // Show browser notification if permission granted
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         try {
@@ -164,22 +164,22 @@ export default function NotificationBadge() {
     if (event) {
       event.stopPropagation();
     }
-    
+
     if (!id) {
       console.warn('Cannot mark notification as read: missing id');
       return;
     }
-    
+
     try {
       await api.put(`/notifications/${id}/read`);
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.map(n => n._id === id ? { ...n, isRead: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Error marking notification as read:', error);
       // Optimistic update
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.map(n => n._id === id ? { ...n, isRead: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
@@ -190,7 +190,7 @@ export default function NotificationBadge() {
     if (event) {
       event.stopPropagation();
     }
-    
+
     try {
       await api.put('/notifications/read-all');
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
@@ -204,9 +204,9 @@ export default function NotificationBadge() {
     if (event) {
       event.stopPropagation();
     }
-    
+
     if (!id) return;
-    
+
     setDeletingId(id);
     try {
       await api.delete(`/notifications/${id}`);
@@ -233,7 +233,7 @@ export default function NotificationBadge() {
       if (!notification.isRead && notification._id) {
         await handleMarkAsRead(notification._id);
       }
-      
+
       // Small delay before closing to show feedback
       setTimeout(() => {
         setShowDropdown(false);
@@ -285,22 +285,22 @@ export default function NotificationBadge() {
     switch (notification.type) {
       case 'product_approved':
       case 'product_rejected':
-        return notification.data?.productId 
+        return notification.data?.productId
           ? `/products/${notification.data.productId}`
           : '/products';
-      
+
       case 'new_message':
         return '/chat';
-      
+
       case 'new_coupon':
         return '/my-promotions';
-      
+
       case 'new_comment':
       case 'new_review':
-        return notification.data?.productId 
+        return notification.data?.productId
           ? `/products/${notification.data.productId}`
           : null;
-      
+
       default:
         return null;
     }
@@ -308,11 +308,11 @@ export default function NotificationBadge() {
 
   const formatTime = (dateString) => {
     if (!dateString) return 'Không xác định';
-    
+
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Không xác định';
-      
+
       const now = new Date();
       const diff = now - date;
 
@@ -392,7 +392,7 @@ export default function NotificationBadge() {
   };
 
   // Filter notifications
-  const filteredNotifications = filter === 'unread' 
+  const filteredNotifications = filter === 'unread'
     ? notifications.filter(n => !n.isRead)
     : notifications;
 
@@ -445,11 +445,11 @@ export default function NotificationBadge() {
             className="fixed inset-0 z-10 bg-black bg-opacity-20"
             onClick={() => setShowDropdown(false)}
           />
-          <div 
+          <div
             ref={dropdownRef}
             className="absolute top-full right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-[100] max-h-[600px] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
-            style={{ 
+            style={{
               top: 'calc(100% + 0.5rem)'
             }}
           >
@@ -488,21 +488,19 @@ export default function NotificationBadge() {
             <div className="flex border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
               <button
                 onClick={() => setFilter('all')}
-                className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
-                  filter === 'all'
-                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                }`}
+                className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${filter === 'all'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}
               >
                 Tất cả
               </button>
               <button
                 onClick={() => setFilter('unread')}
-                className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
-                  filter === 'unread'
-                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                }`}
+                className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${filter === 'unread'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}
               >
                 Chưa đọc {filter === 'unread' && filteredNotifications.length > 0 && `(${filteredNotifications.length})`}
               </button>
@@ -529,9 +527,8 @@ export default function NotificationBadge() {
                   {filteredNotifications.map((notification) => (
                     <div
                       key={notification._id || Math.random()}
-                      className={`group relative p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer ${
-                        !notification.isRead ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                      }`}
+                      className={`group relative p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer ${!notification.isRead ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                        }`}
                       onClick={(e) => handleNotificationClick(notification, e)}
                     >
                       <div className="flex items-start space-x-3">
@@ -539,7 +536,7 @@ export default function NotificationBadge() {
                         <span className={`text-2xl flex-shrink-0 ${getNotificationColor(notification.type)}`}>
                           {getNotificationIcon(notification.type)}
                         </span>
-                        
+
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm text-gray-800 dark:text-gray-200 break-words">
