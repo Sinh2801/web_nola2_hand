@@ -1,8 +1,8 @@
 {
-  "name": "dnu-marketplace-frontend",
+  "name": "nlu-marketplace-frontend",
   "version": "1.0.0",
   "type": "module",
-  "description": "Frontend cho ứng dụng mua bán đồ dùng cũ của sinh viên Đại học Đại Nam",
+  "description": "Frontend cho ứng dụng mua bán đồ dùng cũ của sinh viên Đại học Nông Lâm",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",
