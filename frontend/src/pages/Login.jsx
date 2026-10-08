@@ -64,13 +64,13 @@ export default function Login() {
             </h1>
           </div>
           <h2 className="text-4xl lg:text-5xl font-extrabold mb-6 leading-[1.15]">
-            Chợ Đồ Cũ Sinh Viên <br />
+            Chợ Đồ Cũ <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-300">
               Nông Lâm University
             </span>
           </h2>
           <p className="text-indigo-100 text-lg max-w-md leading-relaxed font-medium">
-            Nơi mua bán, trao đổi đồ dùng học tập, sách vở và các vật dụng thiết yếu dành riêng cho sinh viên nola2hand.
+            Nơi mua bán, trao đổi đồ dùng học tập, sách vở và các vật dụng .
           </p>
 
           {/* Testimonial / Features */}
@@ -94,10 +94,10 @@ export default function Login() {
           {/* Mobile Header */}
           <div className="md:hidden flex items-center justify-center gap-3 mb-8">
             <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
-              <span className="text-xl font-black text-white">D</span>
+              <span className="text-xl font-black text-white">N</span>
             </div>
             <h1 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
-              nola2hand<span className="text-orange-500">Market</span>
+              Nola<span className="text-orange-500">2hand</span>
             </h1>
           </div>
 
