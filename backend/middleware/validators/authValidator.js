@@ -22,8 +22,6 @@ exports.validateRegister = [
     .trim()
     .isEmail()
     .withMessage('Email không hợp lệ')
-    .matches(/@dnu\.edu\.vn$/)
-    .withMessage('Email phải có đuôi @dnu.edu.vn')
     .normalizeEmail(),
   body('password')
     .isLength({ min: 6 })
@@ -43,9 +41,7 @@ exports.validateRegister = [
     .withMessage('Số điện thoại phải có 10-11 chữ số'),
   body('studentId')
     .optional()
-    .trim()
-    .isLength({ min: 5, max: 20 })
-    .withMessage('Mã số sinh viên phải từ 5-20 ký tự'),
+    .trim(),
   handleValidationErrors
 ];
 

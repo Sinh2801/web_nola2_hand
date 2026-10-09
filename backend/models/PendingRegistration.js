@@ -11,7 +11,6 @@ const pendingRegistrationSchema = new mongoose.Schema({
     required: true,
     lowercase: true,
     trim: true,
-    match: [/@dnu\.edu\.vn$/, 'Email phải có đuôi @dnu.edu.vn']
   },
   phone: {
     type: String,
@@ -29,7 +28,8 @@ const pendingRegistrationSchema = new mongoose.Schema({
   },
   studentId: {
     type: String,
-    trim: true
+    trim: true,
+    default: null
   },
   verificationCode: {
     type: String,

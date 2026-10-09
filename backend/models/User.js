@@ -13,7 +13,6 @@ const userSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
-    match: [/@dnu\.edu\.vn$/, 'Email phải có đuôi @dnu.edu.vn']
   },
   phone: {
     type: String,
@@ -38,7 +37,8 @@ const userSchema = new mongoose.Schema({
   studentId: {
     type: String,
     trim: true,
-    sparse: true // Allows null values to be unique
+    sparse: true, // Allows null values to be unique
+    default: null
   },
   isVerified: {
     type: Boolean,
