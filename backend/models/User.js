@@ -1,0 +1,179 @@
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Vui lòng nhập tên của bạn'],
+    trim: true
+  },
+  email: {
+    type: String,
+    required: [true, 'Vui lòng nhập email'],
+    unique: true,
+    lowercase: true,
+    trim: true,
+  },
+  phone: {
+    type: String,
+    required: [true, 'Vui lòng nhập số điện thoại'],
+    unique: true,
+    trim: true
+  },
+  password: {
+    type: String,
+    required: [true, 'Vui lòng nhập mật khẩu'],
+    minlength: 6,
+    select: false
+  },
+  address: {
+    type: String,
+    trim: true
+  },
+  avatar: {
+    type: String,
+    default: ''
+  },
+  studentId: {
+    type: String,
+    trim: true,
+    sparse: true, // Allows null values to be unique
+    default: null
+  },
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  isAdmin: {
+    type: Boolean,
+    default: false
+  },
+  isSuperAdmin: {
+    type: Boolean,
+    default: false
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  verificationToken: String,
+  verificationCode: String,
+  verificationCodeExpire: Date,
+  resetPasswordToken: String,
+  resetPasswordExpire: Date,
+  favorites: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product'
+  }],
+  rating: {
+    average: {
+      type: Number,
+      default: 0
+    },
+    count: {
+      type: Number,
+      default: 0
+    }
+  },
+  isOnline: {
+    type: Boolean,
+    default: false
+  },
+  lastSeen: {
+    type: Date,
+    default: Date.now
+  },
+  followers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  following: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  bio: {
+    type: String,
+    trim: true,
+    maxlength: 300
+  },
+  coverPhoto: {
+    type: String,
+    default: ''
+  },
+  website: {
+    type: String,
+    trim: true
+  },
+  nickname: {
+    type: String,
+    trim: true,
+    sparse: true
+  },
+  followerCount: {
+    type: Number,
+    default: 0
+  },
+  followingCount: {
+    type: Number,
+    default: 0
+  },
+  postCount: {
+    type: Number,
+    default: 0
+  },
+  // --- Shipper ---
+  isShipper: {
+    type: Boolean,
+    default: false
+  },
+  shipperStatus: {
+    type: String,
+    enum: ['none', 'pending', 'approved', 'rejected', 'suspended'],
+    default: 'none'
+  },
+  shipperInfo: {
+    idCard: { type: String, trim: true },
+    vehicleType: {
+      type: String,
+      enum: ['motorbike', 'bicycle', 'walking', 'car'],
+      default: 'motorbike'
+    },
+    operatingArea: { type: String, trim: true },
+    bio: { type: String, trim: true },
+    appliedAt: { type: Date },
+    bankAccount: {
+      bankName: { type: String, trim: true },
+      accountNumber: { type: String, trim: true },
+      accountHolder: { type: String, trim: true },
+      qrCodeImage: { type: String }
+    }
+  }
+}, {
+  timestamps: true
+});
+
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) {
+    return next();
+  }
+  try {
+    this.password = await bcrypt.hash(this.password, 10);
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Compare password method
+userSchema.methods.comparePassword = async function(enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+module.exports = mongoose.model('User', userSchema);
+
+
+
+
+
+
