@@ -22,7 +22,7 @@ const extractMentions = async (text) => {
   // Find user IDs by username/email
   const users = await User.find({
     $or: [
-      { email: { $in: usernames.map(u => `${u}@dnu.edu.vn`) } },
+      { email: { $in: usernames.map(u => `${u}@st.hcmuaf.edu.vn`) } },
       { nickname: { $in: usernames } }
     ]
   }).select('_id');

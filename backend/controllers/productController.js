@@ -690,7 +690,7 @@ function fallbackSuggestMetadata(title, description) {
   // Thêm tags từ tiêu đề
   const words = (title || '').split(/\s+/).map(w => w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").trim().toLowerCase()).filter(w => w.length > 2);
   const wordsSet = new Set(words);
-  const commonWordsToExclude = ['bán', 'thanh', 'lý', 'cần', 'mua', 'giá', 'rẻ', 'cho', 'tốt', 'mới', 'đẹp', 'như', 'hình', 'sinh', 'viên', 'dnu'];
+  const commonWordsToExclude = ['bán', 'thanh', 'lý', 'cần', 'mua', 'giá', 'rẻ', 'cho', 'tốt', 'mới', 'đẹp', 'như', 'hình', 'sinh', 'viên'];
   
   for (const word of wordsSet) {
     if (!commonWordsToExclude.includes(word) && matchedTags.length < 8) {
@@ -707,7 +707,7 @@ function fallbackSuggestMetadata(title, description) {
 // Hàm fallback gợi ý mô tả cục bộ nếu AI lỗi/hết quota
 function fallbackSuggestDescription(title, description) {
   const cleanTitle = String(title).trim();
-  let desc = `Mình cần thanh lý ${cleanTitle} với giá cả cực kỳ hợp lý cho các bạn sinh viên DNU. `;
+  let desc = `Mình cần thanh lý ${cleanTitle} với giá cả cực kỳ hợp lý cho các bạn sinh viên. `;
   if (description && String(description).trim()) {
     desc += `Sản phẩm có đặc điểm: ${String(description).trim().slice(0, 150)}. `;
   } else {
