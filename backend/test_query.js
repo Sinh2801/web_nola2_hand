@@ -7,7 +7,7 @@ const Order = require('./models/Order');
 const Product = require('./models/Product');
 
 async function run() {
-  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace');
+  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand');
   console.log('Connected to DB.');
 
   try {

@@ -7,15 +7,16 @@ const User = require('./models/User');
 const Order = require('./models/Order');
 
 async function run() {
-  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace');
+  // Sửa 'dnu-marketplace' thành 'nola2hand'
+  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand');
   console.log('Connected to DB.');
 
   try {
     const orders = await Order.find()
-      .populate('productId', 'title')
-      .populate('buyerId', 'name')
-      .populate('sellerId', 'name')
-      .populate('shipperId', 'name');
+        .populate('productId', 'title')
+        .populate('buyerId', 'name')
+        .populate('sellerId', 'name')
+        .populate('shipperId', 'name');
 
     console.log(`=== ALL ORDERS IN DB (${orders.length}) ===`);
     for (const o of orders) {

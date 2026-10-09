@@ -35,12 +35,12 @@ async function fetchProductsByIds(semanticHits) {
       isApproved: true,
       status: 'Available',
     })
-      .select('title price category location images description')
-      .lean();
+        .select('title price category location images description')
+        .lean();
 
     // Sắp xếp toàn bộ sản phẩm theo score từ cao xuống thấp
     const sortedProducts = products.sort((a, b) =>
-      (scoreMap[b._id.toString()] || 0) - (scoreMap[a._id.toString()] || 0)
+        (scoreMap[b._id.toString()] || 0) - (scoreMap[a._id.toString()] || 0)
     );
 
     // Lấy top 5 sản phẩm có score khớp nhất
@@ -58,7 +58,7 @@ function isProductQuery(message) {
     'đồ', 'xem', 'bán', 'giáo trình', 'áo', 'bàn', 'ghế', 'điện tử', 'máy',
     'tivi', 'quần', 'nội thất', 'thể thao', 'rẻ', 'cũ', 'dùng', 'cần', 'muốn',
     'cho mình', 'gợi ý', 'recommend', 'thiết bị', 'dụng cụ', 'tai nghe',
-    // Bổ sung các hãng công nghệ, điện thoại và từ khóa thông dụng của sinh viên DNU
+    // Bổ sung các hãng công nghệ, điện thoại và từ khóa thông dụng của sinh viên NLU
     'oppo', 'reno', 'renno', 'iphone', 'samsung', 'xiaomi', 'redmi', 'realme', 'vivo',
     'asus', 'dell', 'hp', 'lenovo', 'macbook', 'ipad', 'nokia', 'sony',
     'nồi', 'bếp', 'tủ', 'giường', 'xe', 'giày', 'vợt', 'casio'
@@ -84,7 +84,6 @@ const chatWithGemini = async (req, res) => {
     const currentSessionId = sessionId || 'default';
 
     // ── RAG Step 1: Single Embedding & Parallel Retrieval ──────────────────
-    // Tạo embedding 1 lần duy nhất để giảm latency và tránh rate limit / phí API
     const queryVector = await generateEmbedding(userMessage).catch(err => {
       console.warn('[chatbot] generateEmbedding failed:', err.message);
       return null;
@@ -92,18 +91,16 @@ const chatWithGemini = async (req, res) => {
 
     // Chạy song song tìm kiếm ngữ nghĩa
     const retrievalTasks = [
-      // Knowledge base search (luôn chạy)
       knowledgeSearch(queryVector || userMessage, 3).catch(err => {
         console.warn('[chatbot] knowledgeSearch failed:', err.message);
         return [];
       }),
-      // Product search (chỉ khi câu hỏi liên quan đến sản phẩm)
       isProductQuery(userMessage)
-        ? semanticSearch(queryVector || userMessage, 8).catch(err => {
-          console.warn('[chatbot] semanticSearch failed:', err.message);
-          return [];
-        })
-        : Promise.resolve([]),
+          ? semanticSearch(queryVector || userMessage, 8).catch(err => {
+            console.warn('[chatbot] semanticSearch failed:', err.message);
+            return [];
+          })
+          : Promise.resolve([]),
     ];
 
     const [knowledgeHits, productHits] = await Promise.all(retrievalTasks);
@@ -111,7 +108,6 @@ const chatWithGemini = async (req, res) => {
     // ── RAG Step 2: Fetch product details từ MongoDB ─────────────────────
     const productDocs = await fetchProductsByIds(productHits);
 
-    // Chuẩn bị productsFound để trả về frontend (hiển thị card sản phẩm)
     const productsFound = productDocs.map(p => ({
       _id: p._id,
       title: p.title,
@@ -125,24 +121,20 @@ const chatWithGemini = async (req, res) => {
     const systemPrompt = buildSystemPrompt(ragContext);
 
     // ── RAG Step 4: Build conversation history for Gemini ────────────────
-    // Lấy history lưu trữ của session này
     const history = chatHistory.get(currentSessionId) || [];
     const geminiHistory = [...history];
 
-    // Tin nhắn hiện tại của user (kèm context mới nếu có)
     const userMessageWithContext = ragContext
-      ? `${userMessage}\n\n[RAG Context - Chỉ dùng nội bộ, không hiển thị ra ngoài]\n${ragContext}`
-      : userMessage;
+        ? `${userMessage}\n\n[RAG Context - Chỉ dùng nội bộ, không hiển thị ra ngoài]\n${ragContext}`
+        : userMessage;
 
     // ── RAG Step 5: Call Gemini ───────────────────────────────────────────
-    // Thứ tự ưu tiên các model
+    // Danh sách model ưu tiên hàng đầu, ổn định nhất hiện tại
     const MODEL_NAMES = [
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-flash-latest',
-      'gemini-pro-latest',
       'gemini-1.5-flash',
       'gemini-1.5-pro',
+      'gemini-flash-latest',
+      'gemini-pro',
     ];
 
     const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -160,11 +152,9 @@ const chatWithGemini = async (req, res) => {
 
     for (const modelName of MODEL_NAMES) {
       try {
-        // Cung cấp systemInstruction trực tiếp cho mô hình để đảm bảo
-        // chỉ dẫn hệ thống có hiệu lực cho tất cả các lượt hội thoại.
-        const model = genAI.getGenerativeModel({ 
+        const model = genAI.getGenerativeModel({
           model: modelName,
-          systemInstruction: systemPrompt 
+          systemInstruction: systemPrompt
         });
         const chat = model.startChat({ history: geminiHistory });
         const result = await chat.sendMessage(userMessageWithContext);
@@ -174,14 +164,13 @@ const chatWithGemini = async (req, res) => {
       } catch (err) {
         lastError = err;
         console.warn(`[chatbot] Model ${modelName} thất bại: ${err.message?.slice(0, 100)}`);
-        // Quota tracked per model, tiếp tục fallback sang model khác
         continue;
       }
     }
 
     if (!responseText) {
       console.error('[chatbot] All models exhausted:', lastError?.message);
-      
+
       const errMsg = (lastError?.message || '').toLowerCase();
       const is429 = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('resource_exhausted') || errMsg.includes('too many');
       const is403 = errMsg.includes('403') || errMsg.includes('forbidden') || errMsg.includes('permission');
@@ -205,22 +194,22 @@ const chatWithGemini = async (req, res) => {
       });
     }
 
-    // ── Step 6: Lưu history ───────────────────────────────────────────────
+    // ── Step 6: Lưu history chuẩn xác (Fix lỗi mất trí nhớ chat) ───────────
     history.push({
       role: 'user',
-      parts: [{ text: userMessage }], // Lưu message gốc (không kèm context để tránh phình to prompt ở lượt sau)
+      parts: [{ text: userMessage }],
     });
     history.push({
       role: 'model',
       parts: [{ text: responseText }],
     });
 
-    // Giới hạn history (giữ MAX_HISTORY lượt gần nhất, mỗi lượt = 2 message)
+    // Giới hạn history và lưu ngược lại vào Map
     if (history.length > MAX_HISTORY * 2) {
       const slicedHistory = history.slice(-MAX_HISTORY * 2);
       chatHistory.set(currentSessionId, slicedHistory);
     } else {
-      chatHistory.set(currentSessionId, history);
+      chatHistory.set(currentSessionId, history); // Đã fix: Lưu đầy đủ khi chưa vượt quá giới hạn
     }
 
     // ── Step 7: Response ──────────────────────────────────────────────────

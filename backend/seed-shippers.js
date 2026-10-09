@@ -10,7 +10,7 @@ const User = require('./models/User');
 const seedShippers = async () => {
   try {
     // 2. Thay thế giá trị dự phòng bằng chuỗi Atlas thực tế của bạn
-    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/dnu-marketplace';
+    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand';
 
     await mongoose.connect(MONGODB_URI);
     console.log(' Đã kết nối MongoDB Atlas thành công!');

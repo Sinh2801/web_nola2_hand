@@ -28,7 +28,8 @@ function taoSoDienThoai() {
 // Kết nối MongoDB
 const connectDB = async () => {
     try {
-        await mongoose.connect(process.env.MONGODB_URI);
+        // Có thể dùng chuỗi kết nối trực tiếp dự phòng nếu file .env không nhận
+        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand');
         console.log('✅ Đã kết nối MongoDB thành công');
     } catch (error) {
         console.error('❌ Lỗi kết nối MongoDB:', error.message);
@@ -47,7 +48,9 @@ const taoNguoiDung = async () => {
         const usedPhones = new Set();
 
         for (let i = 1; i <= 20; i++) {
-            const email = `1671020${String(i).padStart(3, '0')}@dnu.edu.vn`;
+            // Sửa lại format MSSV và Email của Nông Lâm
+            const mssv = `23120${String(i).padStart(3, '0')}`;
+            const email = `${mssv}@nlu.edu.vn`;
             const name = taoTenNgauNhien();
 
             // Tạo số điện thoại unique
@@ -62,9 +65,9 @@ const taoNguoiDung = async () => {
                 email: email,
                 phone: phone,
                 password: '123456', // Sẽ được hash tự động bởi pre-save hook
-                address: 'Đại học Đại Nam',
-                studentId: `1671020${String(i).padStart(3, '0')}`,
-                isVerified: true, // Đã xác minh
+                address: 'Đại học Nông Lâm TP.HCM', // Đã sửa địa chỉ
+                studentId: mssv,
+                isVerified: true,
                 isActive: true
             };
 
@@ -99,7 +102,7 @@ const taoNguoiDung = async () => {
 
         console.log('✨ Hoàn thành!\n');
         console.log('📝 Thông tin đăng nhập:');
-        console.log('   Email: 1671020001@dnu.edu.vn đến 1671020020@dnu.edu.vn');
+        console.log('   Email: 23120001@nlu.edu.vn đến 23120020@nlu.edu.vn');
         console.log('   Mật khẩu: 123456 (tất cả tài khoản)');
 
         process.exit(0);

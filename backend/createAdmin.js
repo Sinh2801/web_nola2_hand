@@ -4,15 +4,15 @@ const User = require('./models/User');
 
 const createAdmin = async () => {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace');
-    
+    // Kết nối đến database nola2hand
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand');
+
     console.log('MongoDB connected successfully');
 
-    // Check if admin already exists
-    const adminEmail = 'admin@dnu.edu.vn';
+    // Đã sửa email thành của Nông Lâm (NLU)
+    const adminEmail = 'admin@nlu.edu.vn';
     const existingAdmin = await User.findOne({ email: adminEmail });
-    
+
     if (existingAdmin) {
       // Update existing user to admin
       existingAdmin.isAdmin = true;
@@ -20,7 +20,7 @@ const createAdmin = async () => {
       existingAdmin.isActive = true;
       existingAdmin.password = 'admin123456';
       await existingAdmin.save();
-      
+
       console.log('✅ Admin updated successfully!');
       console.log('Email:', existingAdmin.email);
       console.log('Password: admin123456');
@@ -30,12 +30,12 @@ const createAdmin = async () => {
 
     // Create admin user
     const admin = await User.create({
-      name: 'Admin DNU',
+      name: 'Admin Nông Lâm', // Đã sửa tên
       email: adminEmail,
       phone: '0123456789',
       password: 'admin123456',
       studentId: '0000000000',
-      address: 'Đại học Đại Nam',
+      address: 'Đại học Nông Lâm TP.HCM', // Đã sửa địa chỉ
       isAdmin: true,
       isVerified: true,
       isActive: true
@@ -45,7 +45,7 @@ const createAdmin = async () => {
     console.log('Email:', admin.email);
     console.log('Password: admin123456');
     console.log('Name:', admin.name);
-    
+
     process.exit(0);
   } catch (error) {
     console.error('Error:', error.message);
@@ -54,7 +54,3 @@ const createAdmin = async () => {
 };
 
 createAdmin();
-
-
-
-

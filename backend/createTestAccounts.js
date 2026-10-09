@@ -5,7 +5,8 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const connectDB = async () => {
     try {
-        const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace';
+        // Đã sửa lại đường dẫn database thành nola2hand
+        const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand';
         await mongoose.connect(uri);
         console.log('✅ Đã kết nối MongoDB thành công');
     } catch (error) {
@@ -23,31 +24,31 @@ const createTestAccounts = async () => {
         const testAccounts = [
             {
                 name: 'Seller Test',
-                email: 'seller_test@dnu.edu.vn',
+                email: 'seller_test@nlu.edu.vn', // Sửa email thành NLU
                 phone: '0999999901',
                 password: '123456',
                 studentId: '999999901',
-                address: 'Khuôn viên Đại học Đại Nam',
+                address: 'Khuôn viên Đại học Nông Lâm TP.HCM', // Sửa địa chỉ
                 isVerified: true,
                 isActive: true
             },
             {
                 name: 'Buyer Test',
-                email: 'buyer_test@dnu.edu.vn',
+                email: 'buyer_test@nlu.edu.vn', // Sửa email thành NLU
                 phone: '0999999902',
                 password: '123456',
                 studentId: '999999902',
-                address: 'Khu ký túc xá Đại học Đại Nam',
+                address: 'Khu ký túc xá Đại học Nông Lâm TP.HCM', // Sửa địa chỉ
                 isVerified: true,
                 isActive: true
             },
             {
                 name: 'Admin Test',
-                email: 'admin_test@dnu.edu.vn',
+                email: 'admin_test@nlu.edu.vn', // Sửa email thành NLU
                 phone: '0999999903',
                 password: '123456',
                 studentId: '999999903',
-                address: 'Phòng đào tạo Đại học Đại Nam',
+                address: 'Phòng đào tạo Đại học Nông Lâm TP.HCM', // Sửa địa chỉ
                 isVerified: true,
                 isActive: true,
                 isAdmin: true,
@@ -74,15 +75,15 @@ const createTestAccounts = async () => {
         console.log('\n✨ ĐÃ HOÀN THÀNH TẠO TÀI KHOẢN TEST CHO DEMO! ✨');
         console.log('----------------------------------------------------');
         console.log('1. Tài khoản Người bán (Seller):');
-        console.log('   📧 Email: seller_test@dnu.edu.vn');
+        console.log('   📧 Email: seller_test@nlu.edu.vn');
         console.log('   🔑 Mật khẩu: 123456');
         console.log('----------------------------------------------------');
         console.log('2. Tài khoản Người mua (Buyer):');
-        console.log('   📧 Email: buyer_test@dnu.edu.vn');
+        console.log('   📧 Email: buyer_test@nlu.edu.vn');
         console.log('   🔑 Mật khẩu: 123456');
         console.log('----------------------------------------------------');
         console.log('3. Tài khoản Admin (Quản trị):');
-        console.log('   📧 Email: admin_test@dnu.edu.vn');
+        console.log('   📧 Email: admin_test@nlu.edu.vn');
         console.log('   🔑 Mật khẩu: 123456');
         console.log('----------------------------------------------------');
 

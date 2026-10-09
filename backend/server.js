@@ -202,7 +202,7 @@ app.use('*', (req, res) => {
 });
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace')
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand')
 .then(() => {
   console.log('MongoDB connected successfully');
   

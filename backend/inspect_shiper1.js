@@ -5,7 +5,8 @@ dotenv.config();
 const User = require('./models/User');
 
 async function run() {
-  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace');
+  // Sửa 'dnu-marketplace' thành 'nola2hand'
+  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand');
   console.log('Connected to DB.');
 
   try {
