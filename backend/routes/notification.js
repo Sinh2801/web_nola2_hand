@@ -22,7 +22,7 @@ router.put('/:id/read', markAsRead);
 router.put('/read-all', markAllAsRead);
 router.delete('/:id', deleteNotification);
 
-// Notification settings routes
+
 router.get('/settings', getSettings);
 router.put('/settings', updateSettings);
 

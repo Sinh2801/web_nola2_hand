@@ -16,7 +16,7 @@ const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-// All admin routes require authentication and admin role
+
 router.use(protect);
 router.use(authorize());
 

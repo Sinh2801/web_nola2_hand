@@ -6,15 +6,15 @@ const Post = require('../models/Post');
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace';
 
 async function run() {
-  console.log(`📡 Đang kết nối tới MongoDB: ${MONGODB_URI}`);
+  console.log(`Đang kết nối tới MongoDB: ${MONGODB_URI}`);
   try {
     await mongoose.connect(MONGODB_URI);
-    console.log('✅ Kết nối MongoDB thành công!\n');
+    console.log(' Kết nối MongoDB thành công!\n');
 
     const result = await Post.updateMany({ isApproved: false }, { isApproved: true });
-    console.log(`✅ Đã phê duyệt thành công ${result.modifiedCount} bài viết trong cơ sở dữ liệu.\n`);
+    console.log(` Đã phê duyệt thành công ${result.modifiedCount} bài viết trong cơ sở dữ liệu.\n`);
   } catch (err) {
-    console.error('❌ Có lỗi xảy ra:', err.message);
+    console.error('Có lỗi xảy ra:', err.message);
   } finally {
     await mongoose.disconnect();
     console.log('🔌 Đã ngắt kết nối MongoDB.\n');

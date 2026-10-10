@@ -1,11 +1,4 @@
-/**
- * indexKnowledge.js
- * Script chạy 1 lần để embed toàn bộ knowledge base (FAQ, guide, policy)
- * vào knowledge vector index.
- *
- * Chạy: cd backend && node scripts/indexKnowledge.js
- * Hoặc: npm run index-knowledge
- */
+
 
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
