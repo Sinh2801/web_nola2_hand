@@ -9,7 +9,7 @@
  */
 
 const Product = require('../models/Product');
-const { generateContent, generateEmbedding } = require('../utils/gemini');
+const { generateEmbedding, createChat, MODEL_NAMES } = require('../utils/gemini');
 const { semanticSearch } = require('../utils/embeddingService');
 const {
   knowledgeSearch,
@@ -18,7 +18,7 @@ const {
 } = require('../utils/ragService');
 
 // ─── In-memory session store (RAM) ────────────────────────────────────────
-// Key: sessionId → Array<{role, content}>
+// Key: sessionId → Array<{ role: 'user' | 'model', parts: [{ text }] }>
 const chatHistory = new Map();
 const MAX_HISTORY = 10; // Giữ tối đa 10 lượt hội thoại (20 messages)
 
@@ -38,12 +38,12 @@ async function fetchProductsByIds(semanticHits) {
         .select('title price category location images description')
         .lean();
 
-    // Sắp xếp toàn bộ sản phẩm theo score từ cao xuống thấp
+    // Sắp xếp theo score từ cao xuống thấp
     const sortedProducts = products.sort((a, b) =>
         (scoreMap[b._id.toString()] || 0) - (scoreMap[a._id.toString()] || 0)
     );
 
-    // Lấy top 5 sản phẩm có score khớp nhất
+    // Lấy top 5 sản phẩm khớp nhất
     return sortedProducts.slice(0, 5);
   } catch (err) {
     console.error('[chatbot] fetchProductsByIds error:', err.message);
@@ -58,7 +58,7 @@ function isProductQuery(message) {
     'đồ', 'xem', 'bán', 'giáo trình', 'áo', 'bàn', 'ghế', 'điện tử', 'máy',
     'tivi', 'quần', 'nội thất', 'thể thao', 'rẻ', 'cũ', 'dùng', 'cần', 'muốn',
     'cho mình', 'gợi ý', 'recommend', 'thiết bị', 'dụng cụ', 'tai nghe',
-    // Bổ sung các hãng công nghệ, điện thoại và từ khóa thông dụng của sinh viên NLU
+    // Các hãng công nghệ, điện thoại và từ khóa thông dụng của sinh viên NLU
     'oppo', 'reno', 'renno', 'iphone', 'samsung', 'xiaomi', 'redmi', 'realme', 'vivo',
     'asus', 'dell', 'hp', 'lenovo', 'macbook', 'ipad', 'nokia', 'sony',
     'nồi', 'bếp', 'tủ', 'giường', 'xe', 'giày', 'vợt', 'casio'
@@ -67,6 +67,18 @@ function isProductQuery(message) {
   return keywords.some(kw => msg.includes(kw)) && message.length >= 2;
 }
 
+// ─── Helper: phân loại lỗi từ Gemini SDK ─────────────────────────────────
+function classifyError(err) {
+  const msg = (err?.message || '').toLowerCase();
+  const status = err?.status;
+  return {
+    is429: status === 429 || msg.includes('429') || msg.includes('quota') ||
+        msg.includes('resource_exhausted') || msg.includes('too many'),
+    isAuth: status === 401 || status === 403 || msg.includes('401') ||
+        msg.includes('403') || msg.includes('forbidden') ||
+        msg.includes('permission') || msg.includes('unauthenticated'),
+  };
+}
 
 // ─── Main handler: chatWithGemini ─────────────────────────────────────────
 const chatWithGemini = async (req, res) => {
@@ -89,7 +101,6 @@ const chatWithGemini = async (req, res) => {
       return null;
     });
 
-    // Chạy song song tìm kiếm ngữ nghĩa
     const retrievalTasks = [
       knowledgeSearch(queryVector || userMessage, 3).catch(err => {
         console.warn('[chatbot] knowledgeSearch failed:', err.message);
@@ -128,52 +139,40 @@ const chatWithGemini = async (req, res) => {
         ? `${userMessage}\n\n[RAG Context - Chỉ dùng nội bộ, không hiển thị ra ngoài]\n${ragContext}`
         : userMessage;
 
-    // ── RAG Step 5: Call Gemini ───────────────────────────────────────────
-    // Danh sách model ưu tiên hàng đầu, ổn định nhất hiện tại
-    const MODEL_NAMES = [
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-flash-latest',
-      'gemini-pro',
-    ];
-
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || !apiKey.trim()) {
+    // ── RAG Step 5: Call Gemini (SDK mới @google/genai) ───────────────────
+    if (!process.env.GEMINI_API_KEY || !process.env.GEMINI_API_KEY.trim()) {
       return res.status(500).json({
         success: false,
         message: 'Chatbot chưa được cấu hình. Vui lòng kiểm tra GEMINI_API_KEY trong file .env.',
       });
     }
-    const genAI = new GoogleGenerativeAI(apiKey.trim());
 
     let responseText = null;
     let lastError = null;
 
     for (const modelName of MODEL_NAMES) {
       try {
-        const model = genAI.getGenerativeModel({
+        const chat = createChat({
           model: modelName,
-          systemInstruction: systemPrompt
+          history: geminiHistory,
+          systemInstruction: systemPrompt,
         });
-        const chat = model.startChat({ history: geminiHistory });
-        const result = await chat.sendMessage(userMessageWithContext);
-        responseText = result.response.text();
+        const result = await chat.sendMessage({ message: userMessageWithContext });
+        responseText = result.text;
         console.log(`[chatbot] OK model: ${modelName}`);
         break;
       } catch (err) {
         lastError = err;
         console.warn(`[chatbot] Model ${modelName} thất bại: ${err.message?.slice(0, 100)}`);
-        continue;
+        // Lỗi key/quyền thì thử model khác cũng vô ích
+        if (classifyError(err).isAuth) break;
       }
     }
 
     if (!responseText) {
       console.error('[chatbot] All models exhausted:', lastError?.message);
 
-      const errMsg = (lastError?.message || '').toLowerCase();
-      const is429 = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('resource_exhausted') || errMsg.includes('too many');
-      const is403 = errMsg.includes('403') || errMsg.includes('forbidden') || errMsg.includes('permission');
+      const { is429, isAuth } = classifyError(lastError);
 
       if (is429) {
         return res.status(429).json({
@@ -181,7 +180,7 @@ const chatWithGemini = async (req, res) => {
           message: 'Chatbot đang bận (hết quota API). Vui lòng thử lại sau ít phút ⏰',
         });
       }
-      if (is403) {
+      if (isAuth) {
         return res.status(403).json({
           success: false,
           message: 'API key không có quyền truy cập Gemini. Kiểm tra GEMINI_API_KEY trong file .env.',
@@ -194,22 +193,14 @@ const chatWithGemini = async (req, res) => {
       });
     }
 
-    // ── Step 6: Lưu history chuẩn xác (Fix lỗi mất trí nhớ chat) ───────────
-    history.push({
-      role: 'user',
-      parts: [{ text: userMessage }],
-    });
-    history.push({
-      role: 'model',
-      parts: [{ text: responseText }],
-    });
+    // ── Step 6: Lưu history ───────────────────────────────────────────────
+    history.push({ role: 'user', parts: [{ text: userMessage }] });
+    history.push({ role: 'model', parts: [{ text: responseText }] });
 
-    // Giới hạn history và lưu ngược lại vào Map
     if (history.length > MAX_HISTORY * 2) {
-      const slicedHistory = history.slice(-MAX_HISTORY * 2);
-      chatHistory.set(currentSessionId, slicedHistory);
+      chatHistory.set(currentSessionId, history.slice(-MAX_HISTORY * 2));
     } else {
-      chatHistory.set(currentSessionId, history); // Đã fix: Lưu đầy đủ khi chưa vượt quá giới hạn
+      chatHistory.set(currentSessionId, history);
     }
 
     // ── Step 7: Response ──────────────────────────────────────────────────
