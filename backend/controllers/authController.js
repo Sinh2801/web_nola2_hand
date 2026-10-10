@@ -54,9 +54,9 @@ exports.register = async (req, res) => {
     // Send verification email with OTP code
     const htmlMessage = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563eb;">Chào mừng bạn đến với DNU Marketplace!</h2>
+        <h2 style="color: #2563eb;">Chào mừng bạn đến với NOLA2HAND!</h2>
         <p>Xin chào <strong>${name}</strong>,</p>
-        <p>Cảm ơn bạn đã đăng ký tài khoản. Để xác minh bạn là sinh viên DNU, vui lòng sử dụng mã xác minh sau:</p>
+        <p>Cảm ơn bạn đã đăng ký tài khoản. Để xác minh tài khoản, vui lòng sử dụng mã xác minh sau:</p>
         <div style="background-color: #f3f4f6; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
           <h1 style="color: #2563eb; font-size: 32px; letter-spacing: 5px; margin: 0;">${verificationCode}</h1>
         </div>
@@ -68,11 +68,11 @@ exports.register = async (req, res) => {
     `;
 
     const textMessage = `
-      Chào mừng bạn đến với DNU Marketplace!
+      Chào mừng bạn đến với NOLA2HAND!
       
       Xin chào ${name},
       
-      Cảm ơn bạn đã đăng ký tài khoản. Để xác minh bạn là sinh viên DNU, vui lòng sử dụng mã xác minh sau:
+      Cảm ơn bạn đã đăng ký tài khoản. Để xác minh tài khoản, vui lòng sử dụng mã xác minh sau:
       
       ${verificationCode}
       
@@ -108,7 +108,7 @@ exports.register = async (req, res) => {
 
       await sendEmail({
         email: pendingRegistration.email,
-        subject: 'Mã xác minh tài khoản DNU Marketplace',
+        subject: 'Mã xác minh tài khoản NOLA2HAND!',
         message: textMessage,
         html: htmlMessage,
         fromEmail: senderEmail,
@@ -330,7 +330,7 @@ exports.resendVerificationCode = async (req, res) => {
     // Send verification email with OTP code
     const htmlMessage = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563eb;">Mã xác minh mới - DNU Marketplace</h2>
+        <h2 style="color: #2563eb;">Mã xác minh mới - NOLA2HAND</h2>
         <p>Xin chào <strong>${pendingRegistration.name}</strong>,</p>
         <p>Bạn đã yêu cầu gửi lại mã xác minh. Vui lòng sử dụng mã sau:</p>
         <div style="background-color: #f3f4f6; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
@@ -344,7 +344,7 @@ exports.resendVerificationCode = async (req, res) => {
     `;
 
     const textMessage = `
-      Mã xác minh mới - DNU Marketplace
+      Mã xác minh mới - NOLA2HAND
       
       Xin chào ${pendingRegistration.name},
       
@@ -373,7 +373,7 @@ exports.resendVerificationCode = async (req, res) => {
 
       await sendEmail({
         email: pendingRegistration.email,
-        subject: 'Mã xác minh mới - DNU Marketplace',
+        subject: 'Mã xác minh mới - NOLA2HAND',
         message: textMessage,
         html: htmlMessage,
         fromEmail: senderEmail,
@@ -584,7 +584,7 @@ exports.forgotPassword = async (req, res) => {
     // Send OTP email
     const htmlMessage = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563eb;">Yêu cầu đặt lại mật khẩu - DNU Marketplace</h2>
+        <h2 style="color: #2563eb;">Yêu cầu đặt lại mật khẩu - NOLA2HAND</h2>
         <p>Xin chào <strong>${user.name}</strong>,</p>
         <p>Bạn đã yêu cầu đặt lại mật khẩu. Vui lòng sử dụng mã xác minh sau:</p>
         <div style="background-color: #f3f4f6; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
@@ -598,7 +598,7 @@ exports.forgotPassword = async (req, res) => {
     `;
 
     const textMessage = `
-      Yêu cầu đặt lại mật khẩu - DNU Marketplace
+      Yêu cầu đặt lại mật khẩu - NOLA2HAND
       
       Xin chào ${user.name},
       
@@ -627,7 +627,7 @@ exports.forgotPassword = async (req, res) => {
 
       await sendEmail({
         email: user.email,
-        subject: 'Mã xác minh đặt lại mật khẩu - DNU Marketplace',
+        subject: 'Mã xác minh đặt lại mật khẩu - NOLA2HAND',
         message: textMessage,
         html: htmlMessage,
         fromEmail: senderEmail,
@@ -803,7 +803,7 @@ exports.requestChangePassword = async (req, res) => {
     // Send OTP email
     const htmlMessage = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563eb;">Yêu cầu đổi mật khẩu - DNU Marketplace</h2>
+        <h2 style="color: #2563eb;">Yêu cầu đổi mật khẩu - NOLA2HAND</h2>
         <p>Xin chào <strong>${user.name}</strong>,</p>
         <p>Bạn đã yêu cầu đổi mật khẩu. Vui lòng sử dụng mã xác minh sau:</p>
         <div style="background-color: #f3f4f6; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
@@ -817,7 +817,7 @@ exports.requestChangePassword = async (req, res) => {
     `;
 
     const textMessage = `
-      Yêu cầu đổi mật khẩu - DNU Marketplace
+      Yêu cầu đổi mật khẩu - NOLA2HAND
       
       Xin chào ${user.name},
       
@@ -846,7 +846,7 @@ exports.requestChangePassword = async (req, res) => {
 
       await sendEmail({
         email: user.email,
-        subject: 'Mã xác minh đổi mật khẩu - DNU Marketplace',
+        subject: 'Mã xác minh đổi mật khẩu - NOLA2HAND',
         message: textMessage,
         html: htmlMessage,
         fromEmail: senderEmail,
