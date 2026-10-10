@@ -2,7 +2,7 @@
  * ragService.js
  * RAG (Retrieval-Augmented Generation) Service
  * Kết hợp:
- *   1. Semantic Search sản phẩm (Vectra vector index có sẵn)
+ *   Semantic Search sản phẩm (Vectra vector index có sẵn)
  *   2. Knowledge Base Search (FAQ, chính sách, hướng dẫn)
  * để tạo context chất lượng cao cho Gemini trả lời.
  */
@@ -37,8 +37,8 @@ async function getKnowledgeIndex() {
 /**
  * Chia nội dung Markdown thành các chunks theo heading (###, ##).
  * Mỗi chunk = 1 đoạn kiến thức có thể embed riêng.
- * @param {string} content - Nội dung file markdown
- * @param {string} source - Tên nguồn (faq, guide, policy)
+ * @param {string} content Nội dung file markdown
+ * @param {string} source Tên nguồn (faq, guide, policy)
  * @returns {Array<{id: string, text: string, source: string}>}
  */
 function chunkMarkdown(content, source) {
@@ -108,7 +108,6 @@ function loadKnowledgeChunks() {
  */
 async function indexKnowledgeBase(force = false) {
   try {
-    // Đảm bảo index tồn tại trước (tạo mới nếu chưa có)
     _knowledgeIndex = null; // Reset singleton để force re-create
     const index = await getKnowledgeIndex();
 
@@ -138,7 +137,6 @@ async function indexKnowledgeBase(force = false) {
         const vector = await generateEmbedding(chunk.text);
         if (!vector) continue;
 
-        // Xóa item cũ nếu có
         try { await index.deleteItem(chunk.id); } catch (_) {}
 
         await index.insertItem({
@@ -147,7 +145,7 @@ async function indexKnowledgeBase(force = false) {
           metadata: {
             id: chunk.id,
             source: chunk.source,
-            text: chunk.text.slice(0, 500), // Lưu preview
+            text: chunk.text.slice(0, 500),
           },
         });
         success++;
@@ -155,7 +153,6 @@ async function indexKnowledgeBase(force = false) {
         console.error(`[ragService] Failed to index chunk ${chunk.id}:`, err.message);
       }
 
-      // Delay nhỏ để tránh rate limit
       await new Promise(resolve => setTimeout(resolve, 300));
     }
 
@@ -171,8 +168,8 @@ async function indexKnowledgeBase(force = false) {
 
 /**
  * Tìm kiếm ngữ nghĩa trong knowledge base.
- * @param {string} queryText - Câu hỏi của user
- * @param {number} topK - Số kết quả trả về
+ * @param {string} queryText Câu hỏi của user
+ * @param {number} topK Số kết quả trả về
  * @returns {Promise<Array<{text: string, source: string, score: number}>>}
  */
 async function knowledgeSearch(query, topK = 3) {
@@ -187,10 +184,7 @@ async function knowledgeSearch(query, topK = 3) {
 
     const index = await getKnowledgeIndex();
     const items = await index.listItems();
-    if (items.length === 0) {
-      // Index chưa có → không trả về gì
-      return [];
-    }
+    if (items.length === 0) return [];
 
     const results = await index.queryItems(vector, topK);
     return results.map(r => ({
@@ -208,9 +202,9 @@ async function knowledgeSearch(query, topK = 3) {
 
 /**
  * Tạo context block từ kết quả RAG để đưa vào prompt.
- * @param {Array} productHits - Kết quả từ product semantic search
- * @param {Array} knowledgeHits - Kết quả từ knowledge search
- * @param {Array} productDocs - Mongoose documents của sản phẩm tìm được
+ * @param {Array} productHits Kết quả từ product semantic search
+ * @param {Array} knowledgeHits Kết quả từ knowledge search
+ * @param {Array} productDocs Mongoose documents của sản phẩm tìm được
  * @returns {string} Context block để inject vào prompt
  */
 function buildRAGContext(productHits, knowledgeHits, productDocs) {
@@ -221,7 +215,7 @@ function buildRAGContext(productHits, knowledgeHits, productDocs) {
     const sourceLabel = { faq: 'FAQ', guide: 'Hướng dẫn', policy: 'Chính sách' };
     context += '=== THÔNG TIN TỪ KNOWLEDGE BASE ===\n';
     for (const hit of knowledgeHits) {
-      if (hit.score > 0.3) { // Chỉ dùng nếu đủ liên quan
+      if (hit.score > 0.3) {
         const label = sourceLabel[hit.source] || hit.source;
         context += `[${label}]\n${hit.text}\n\n`;
       }
@@ -250,27 +244,25 @@ function buildRAGContext(productHits, knowledgeHits, productDocs) {
 
 /**
  * Build system prompt cho RAG chatbot.
- * @param {string} ragContext - Context từ buildRAGContext
+ * @param {string} ragContext Context từ buildRAGContext
  * @returns {string}
  */
 function buildSystemPrompt(ragContext) {
-  return `Bạn là trợ lý AI thông minh của sàn giao dịch đồ cũ sinh viên Đại học Đại Nam.
-Nhiệm vụ của bạn là hỗ trợ sinh viên mua bán, tìm sản phẩm và giải đáp thắc mắc về ứng dụng.
+  return `Bạn là trợ lý AI thông minh của Sàn giao dịch đồ cũ sinh viên Trường Đại học Nông Lâm Thành phố Hồ Chí Minh (NLU).
+Nhiệm vụ của bạn là hỗ trợ sinh viên mua bán, tìm sản phẩm và giải đáp thắc mắc về các quy định, hướng dẫn sử dụng trên sàn.
 
 ${ragContext ? `--- THÔNG TIN THAM KHẢO (sử dụng để trả lời chính xác) ---\n${ragContext}\n---` : ''}
 
 NGUYÊN TẮC TRẢ LỜI:
-- Trả lời bằng tiếng Việt, thân thiện và ngắn gọn
-- Nếu có danh sách sản phẩm trong thông tin tham khảo → PHẢI liệt kê cụ thể (tên + giá)
-- Nếu có thông tin từ knowledge base → dựa vào đó để trả lời chính xác
-- Nếu không có thông tin liên quan → trả lời trung thực rằng không biết và gợi ý liên hệ admin
-- KHÔNG bịa đặt thông tin không có trong dữ liệu được cung cấp
-- Ưu tiên câu trả lời ngắn gọn, dễ hiểu`;
+- Trả lời bằng tiếng Việt, lịch sự, thân thiện và mang phong cách sinh viên Nông Lâm.
+- Nếu có danh sách sản phẩm trong thông tin tham khảo → PHẢI liệt kê cụ thể rõ ràng (tên + giá + khu vực) để người dùng dễ theo dõi.
+- Nếu có thông tin từ knowledge base (FAQ, chính sách, hướng dẫn) → dựa vào đó để trả lời chính xác các thắc mắc của người dùng.
+- Nếu không có thông tin liên quan → trả lời trung thực rằng hệ thống chưa tìm thấy và gợi ý liên hệ ban quản trị.
+- KHÔNG bịa đặt thông tin không có trong dữ liệu được cung cấp.
+- Ưu tiên câu trả lời ngắn gọn, súc tích và dễ hiểu.`;
 }
 
 // ─── Auto-init knowledge index when module loads ────────────────────────────
-// Chỉ log cảnh báo nếu index chưa có — không tự index để tránh xung đột
-// Chạy `npm run index-knowledge` để build knowledge index
 (async () => {
   try {
     const index = await getKnowledgeIndex();

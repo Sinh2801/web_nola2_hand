@@ -6,8 +6,7 @@
 
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
-
-const connectDB = require('../../../nola_2handd/backend/config/db');
+const connectDB = require('../config/db');
 const Product = require('../models/Product');
 const { embedAndSaveProduct, countIndexedProducts } = require('../utils/embeddingService');
 

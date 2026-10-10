@@ -13,7 +13,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Follow = require('../models/Follow');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand';
 
 async function syncFollows() {
   console.log('\n======================================================');
