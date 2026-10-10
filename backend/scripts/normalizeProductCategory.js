@@ -15,7 +15,7 @@ const CATEGORY_EN_TO_VI = {
 
 async function run() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace');
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand');
     console.log('Đã kết nối MongoDB.\n');
 
     const englishCategories = Object.keys(CATEGORY_EN_TO_VI);

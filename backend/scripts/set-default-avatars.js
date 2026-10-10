@@ -6,8 +6,7 @@ const User = require('../models/User');
 
 // ─── CẤU HÌNH ────────────────────────────────────────────────────────────────
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace';
-
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand'
 // Đường dẫn avatar – phục vụ từ thư mục public của frontend
 const AVATAR_MALE   = '/avatars/default_male.png';
 const AVATAR_FEMALE = '/avatars/default_female.png';

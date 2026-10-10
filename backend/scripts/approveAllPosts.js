@@ -3,7 +3,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const Post = require('../models/Post');
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand';
 
 async function run() {
   console.log(`Đang kết nối tới MongoDB: ${MONGODB_URI}`);
