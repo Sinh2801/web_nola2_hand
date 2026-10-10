@@ -1,8 +1,4 @@
-/**
- * Script chuẩn hóa condition sản phẩm: đổi New/Like New/Excellent/... -> tình trạng tiếng Việt.
- * Chạy: node scripts/normalizeProductCondition.js
- * (từ thư mục backend: node scripts/normalizeProductCondition.js)
- */
+
 const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
