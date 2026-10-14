@@ -1,8 +1,4 @@
-/**
- * Script chuẩn hóa category sản phẩm: đổi Electronics -> Điện tử, Books -> Sách, ...
- * Chạy: node scripts/normalizeProductCategory.js
- * (từ thư mục backend: node scripts/normalizeProductCategory.js)
- */
+
 const mongoose = require('mongoose');
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const Product = require('../models/Product');

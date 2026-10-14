@@ -11,12 +11,12 @@ const fs = require('fs');
 
 const router = express.Router();
 
-// Configure multer for file uploads
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(__dirname, '../uploads/messages/');
     
-    // Ensure directory exists
+
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
@@ -40,14 +40,14 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     console.log('File filter:', file.originalname, file.mimetype);
-    // Allow all file types for now
+    
     cb(null, true);
   }
 });
 
 router.use(protect);
 
-// Add logging middleware for POST requests
+
 router.post('/', (req, res, next) => {
   console.log('Before multer - Request files:', req.files);
   console.log('Before multer - Request body:', req.body);

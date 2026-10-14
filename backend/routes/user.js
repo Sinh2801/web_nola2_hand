@@ -22,14 +22,14 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Public routes
+
 router.get('/:userId/public', getUserPublicProfile);
 router.get('/:userId/products', getUserProducts);
 router.get('/:userId/seller-stats', protect, getSellerStats);
 router.get('/:userId/followers', getFollowers);
 router.get('/:userId/following', getFollowing);
 
-// Protected routes
+
 router.get('/profile/:id', protect, getUserProfile);
 router.put('/profile', protect, updateProfile);
 router.get('/products', protect, getMyProducts);

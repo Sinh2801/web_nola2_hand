@@ -1,12 +1,3 @@
-/**
- * ============================================================
- *  syncFollows.js
- *  Script đồng bộ dữ liệu follow, sửa lỗi bất đồng bộ giữa
- *  bảng Follow và các mảng followers/following trong bảng User.
- *
- *  Chạy: node scripts/syncFollows.js
- * ============================================================
- */
 
 require('dotenv').config();
 const mongoose = require('mongoose');

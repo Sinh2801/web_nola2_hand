@@ -4,7 +4,7 @@ const User = require('./models/User');
 
 const createAdmin = async () => {
   try {
-    // Kết nối đến database nola2hand
+   
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand');
 
     console.log('MongoDB connected successfully');

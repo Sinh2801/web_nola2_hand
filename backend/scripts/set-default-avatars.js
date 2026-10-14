@@ -1,13 +1,4 @@
-/**
- * ============================================================
- *  set-default-avatars.js
- *  Script gán avatar mặc định DNU cho các tài khoản chưa có avatar.
- *  Suy đoán giới tính dựa vào tên đệm/tên cuối trong tiếng Việt.
- *
- *  Chạy: node scripts/set-default-avatars.js
- *        hoặc dùng file set-default-avatars.bat
- * ============================================================
- */
+
 
 require('dotenv').config();
 const mongoose = require('mongoose');

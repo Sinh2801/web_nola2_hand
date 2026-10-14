@@ -28,14 +28,14 @@ router.post('/ai-suggest-metadata', suggestCategoryAndTags);
 router.post('/ai-suggest-description', suggestDescription);
 router.get('/:id', getProduct);
 
-// Protected routes - giới hạn tối đa 5 ảnh với validation
+
 router.post('/', protect, blockShipper, upload.array('images', 5), validateCreateProduct, createProduct);
 router.put('/:id', protect, blockShipper, upload.array('images', 5), validateUpdateProduct, updateProduct);
 router.delete('/:id', protect, blockShipper, deleteProduct);
 router.put('/:id/sold', protect, blockShipper, markAsSold);
 router.post('/:id/report', protect, reportProduct);
 
-// Admin routes
+
 router.put('/:id/approve', protect, approveProduct);
 router.put('/:id/reject', protect, rejectProduct);
 

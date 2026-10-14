@@ -12,11 +12,11 @@ const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-// User routes (require authentication)
+
 router.post('/validate', protect, validateCoupon);
 router.get('/available', protect, getAvailableCoupons);
 
-// Admin routes (require authentication and admin role)
+
 const adminRouter = express.Router();
 adminRouter.use(protect);
 adminRouter.use(authorize());

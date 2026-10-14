@@ -16,7 +16,7 @@ const {
 const { protect } = require('../middleware/auth');
 const { upload } = require('../utils/uploadImage');
 
-// All routes require authentication except getPosts and getPost
+
 router.post('/', protect, upload.array('images', 10), createPost);
 router.get('/', getPosts);
 router.get('/feed', protect, getFollowingFeed);

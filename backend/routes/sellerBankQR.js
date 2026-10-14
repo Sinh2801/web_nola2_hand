@@ -25,18 +25,17 @@ const upload = multer({
   }
 });
 
-// Người bán
 router.post('/', protect, upload.single('qrCodeImage'), upsertSellerBankQR);
 router.get('/my', protect, getMySellerBankQR);
 
-// Người bán xác nhận đã nhận tiền
+
 router.put('/payments/:paymentId/confirm-receipt', protect, confirmSellerReceipt);
 router.put('/payments/:paymentId/report-issue', protect, reportPaymentIssue);
 
-// Admin
+
 router.get('/all', protect, authorize(), getAllSellerBankQRs);
 router.put('/:id/verify', protect, authorize(), verifySellerBankQR);
-// Admin chuyển tiền người bán kèm ảnh biên lai
+
 router.put('/payments/:paymentId/mark-seller-paid', protect, authorize(), upload.single('sellerPaymentProof'), markSellerPaid);
 
 module.exports = router;
