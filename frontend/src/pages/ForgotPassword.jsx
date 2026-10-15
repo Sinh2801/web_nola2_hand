@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Link } from 'react-router-dom'
 import { forgotPassword, clearError } from '../store/slices/authSlice'
+import PasswordInput from '../components/PasswordInput'
 
 export default function ForgotPassword() {
   const [formData, setFormData] = useState({
@@ -84,10 +85,9 @@ export default function ForgotPassword() {
               <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Mật khẩu mới
               </label>
-              <input
+              <PasswordInput
                 id="newPassword"
                 name="newPassword"
-                type="password"
                 required
                 minLength={6}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
@@ -99,10 +99,9 @@ export default function ForgotPassword() {
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Xác nhận mật khẩu mới
               </label>
-              <input
+              <PasswordInput
                 id="confirmPassword"
                 name="confirmPassword"
-                type="password"
                 required
                 minLength={6}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"

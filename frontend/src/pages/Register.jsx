@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Link } from 'react-router-dom'
 import { register, clearError } from '../store/slices/authSlice'
+import PasswordInput from '../components/PasswordInput'
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -165,9 +166,8 @@ export default function Register() {
 
               <div>
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Mật khẩu</label>
-                <input
+                <PasswordInput
                   name="password"
-                  type="password"
                   required
                   placeholder="Tối thiểu 6 ký tự"
                   className="block w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all font-medium"
@@ -178,9 +178,8 @@ export default function Register() {
 
               <div>
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Xác nhận mật khẩu</label>
-                <input
+                <PasswordInput
                   name="confirmPassword"
-                  type="password"
                   required
                   placeholder="Nhập lại mật khẩu"
                   className="block w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all font-medium"

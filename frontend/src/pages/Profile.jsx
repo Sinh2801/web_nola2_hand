@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import api from '../utils/api'
 import { updateUser, requestChangePassword, verifyOTPAndChangePassword } from '../store/slices/authSlice'
+import PasswordInput from '../components/PasswordInput'
 
 export default function Profile() {
   const { user } = useSelector(state => state.auth)
@@ -399,8 +400,7 @@ export default function Profile() {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Mật khẩu hiện tại *
                         </label>
-                        <input
-                          type="password"
+                        <PasswordInput
                           name="currentPassword"
                           value={passwordData.currentPassword}
                           onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
@@ -414,8 +414,7 @@ export default function Profile() {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Mật khẩu mới *
                         </label>
-                        <input
-                          type="password"
+                        <PasswordInput
                           name="newPassword"
                           value={passwordData.newPassword}
                           onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
@@ -430,8 +429,7 @@ export default function Profile() {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Xác nhận mật khẩu mới *
                         </label>
-                        <input
-                          type="password"
+                        <PasswordInput
                           name="confirmPassword"
                           value={passwordData.confirmPassword}
                           onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
