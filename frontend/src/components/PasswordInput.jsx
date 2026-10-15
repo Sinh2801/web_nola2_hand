@@ -1,11 +1,16 @@
 import React, { useState } from 'react'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 
-export default function PasswordInput({ className = '', ...inputProps }) {
+export default function PasswordInput({ className = '', leftIcon, ...inputProps }) {
   const [isVisible, setIsVisible] = useState(false)
 
   return (
     <div className="relative">
+      {leftIcon && (
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          {leftIcon}
+        </div>
+      )}
       <input
         {...inputProps}
         type={isVisible ? 'text' : 'password'}
