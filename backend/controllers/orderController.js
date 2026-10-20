@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Coupon = require('../models/Coupon');
 const { createAndEmitNotification } = require('../utils/notifications');
+const { uploadReturnEvidenceToCloudinary } = require('../utils/uploadImage');
 
 const mapProductCategoryToCouponCategory = (productCat) => {
   const mapping = {
@@ -590,7 +591,14 @@ exports.updateOrderStatus = async (req, res) => {
 // @access  Private (Buyer)
 exports.requestReturn = async (req, res) => {
   try {
-    const { returnReason } = req.body;
+    const rawReturnReason = req.body?.returnReason
+      ?? req.body?.reason
+      ?? req.query?.returnReason
+      ?? req.query?.reason;
+    const returnReason = Array.isArray(rawReturnReason)
+      ? String(rawReturnReason[0] || '').trim()
+      : String(rawReturnReason || '').trim();
+    const evidenceFiles = req.files || [];
     const order = await Order.findById(req.params.id)
       .populate('productId', 'title');
 
@@ -605,32 +613,50 @@ exports.requestReturn = async (req, res) => {
       });
     }
 
-    if (order.status !== 'confirmed' && order.status !== 'picked_up') {
+    if (!['confirmed', 'picked_up', 'completed'].includes(order.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Chỉ có thể yêu cầu hoàn hàng cho đơn đã xác nhận hoặc đang giao hàng'
+        message: 'Chỉ có thể yêu cầu hoàn hàng cho đơn đã xác nhận, đang giao hàng hoặc đã nhận hàng'
       });
     }
 
-    // Kiểm tra trong vòng 3 ngày kể từ khi confirmedAt
+    // Người mua có 3 ngày để yêu cầu hoàn sau khi đơn được xác nhận/hoàn tất.
     const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
-    const confirmedAt = order.confirmedAt || order.updatedAt;
-    if (Date.now() - new Date(confirmedAt).getTime() > THREE_DAYS_MS) {
+    const returnWindowStart = order.completedAt || order.confirmedAt || order.updatedAt;
+    if (Date.now() - new Date(returnWindowStart).getTime() > THREE_DAYS_MS) {
       return res.status(400).json({
         success: false,
         message: 'Đã quá thời hạn yêu cầu hoàn hàng (3 ngày kể từ khi xác nhận)'
       });
     }
 
-    if (!returnReason || !returnReason.trim()) {
+    if (!returnReason) {
       return res.status(400).json({
         success: false,
         message: 'Vui lòng nhập lý do hoàn hàng'
       });
     }
 
+    if (evidenceFiles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng upload ít nhất một ảnh hoặc video làm bằng chứng hoàn đơn'
+      });
+    }
+
+    const returnEvidence = [];
+    for (const file of evidenceFiles) {
+      const uploadResult = await uploadReturnEvidenceToCloudinary(file.buffer, file.mimetype);
+      returnEvidence.push({
+        url: uploadResult.secure_url,
+        type: file.mimetype.startsWith('video/') ? 'video' : 'image'
+      });
+    }
+
+    order.returnFromStatus = order.status;
     order.status = 'return_requested';
     order.returnReason = returnReason;
+    order.returnEvidence = returnEvidence;
     order.returnRequestedAt = new Date();
     await order.save();
 
@@ -743,7 +769,7 @@ exports.rejectReturn = async (req, res) => {
       });
     }
 
-    order.status = 'confirmed'; // Quay về confirmed
+    order.status = 'return_rejected';
     order.returnRejectedAt = new Date();
     order.returnRejectedBy = req.user.id;
     order.returnRejectionReason = rejectionReason || 'Không đủ điều kiện hoàn hàng';
@@ -756,6 +782,13 @@ exports.rejectReturn = async (req, res) => {
         'return_rejected',
         'Yêu cầu hoàn hàng bị từ chối',
         `Admin đã từ chối hoàn hàng cho đơn "${order.productId?.title}". Lý do: ${order.returnRejectionReason}`,
+        { orderId: order._id }
+      );
+      await createAndEmitNotification(
+        io, order.sellerId,
+        'return_rejected',
+        'Yêu cầu hoàn hàng bị từ chối',
+        `Admin đã từ chối yêu cầu hoàn hàng cho đơn "${order.productId?.title}". Lý do: ${order.returnRejectionReason}`,
         { orderId: order._id }
       );
     }

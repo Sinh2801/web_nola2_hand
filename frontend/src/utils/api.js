@@ -20,6 +20,7 @@ api.interceptors.request.use(
     // Don't set Content-Type for FormData, let the browser set it
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type']
+      delete config.headers['content-type']
     }
     
     // Debug: log params cho products endpoint
@@ -62,7 +63,6 @@ api.interceptors.response.use(
 )
 
 export default api
-
 
 
 
