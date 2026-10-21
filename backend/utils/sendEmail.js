@@ -43,7 +43,7 @@ const sendEmail = async (options) => {
   });
 
   const mailOptions = {
-    from: `DNU Marketplace <${senderEmail}>`,
+    from: `Nola2Hand <${senderEmail}>`,
     to: options.email,
     subject: options.subject,
     text: options.message,
