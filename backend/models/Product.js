@@ -75,20 +75,7 @@ const productSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  comments: [{
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    content: {
-      type: String,
-      required: true
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
+  comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
   reports: [{
     userId: {
       type: mongoose.Schema.Types.ObjectId,
