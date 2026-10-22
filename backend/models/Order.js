@@ -27,7 +27,7 @@ const orderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'picked_up', 'completed', 'cancelled', 'return_requested', 'returned'],
+    enum: ['pending', 'confirmed', 'picked_up', 'completed', 'cancelled', 'return_requested', 'return_rejected', 'returned'],
     default: 'pending'
   },
   notes: {
@@ -52,8 +52,27 @@ const orderSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  returnEvidence: [{
+    url: {
+      type: String,
+      required: true
+    },
+    type: {
+      type: String,
+      enum: ['image', 'video'],
+      required: true
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   returnRequestedAt: {
     type: Date
+  },
+  returnFromStatus: {
+    type: String,
+    enum: ['confirmed', 'picked_up', 'completed']
   },
   returnApprovedAt: {
     type: Date
@@ -215,4 +234,3 @@ orderSchema.pre('save', async function() {
 });
 
 module.exports = mongoose.model('Order', orderSchema);
-
