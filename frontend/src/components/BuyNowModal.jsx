@@ -240,7 +240,9 @@ export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }
               Đơn hàng thành công!
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 px-2 leading-relaxed">
-              Đã tạo đơn hàng thành công! Vui lòng chờ người bán xác nhận đơn hàng của bạn.
+              {paymentMethod === 'momo'
+                  ? 'Đã tạo đơn hàng! Vui lòng vào "Đơn mua" và bấm "Thanh toán" để thanh toán qua MoMo.'
+                  : 'Đã tạo đơn hàng thành công! Vui lòng chờ người bán xác nhận đơn hàng của bạn.'}
             </p>
 
             <div className="flex flex-col gap-2">
@@ -332,11 +334,17 @@ export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                  required
-              >
-                <option value="transfer">Chuyển khoản</option>
+                  required>
+                <option value="transfer">Chuyển khoản (QR ngân hàng)</option>
+                <option value="momo">Thanh toán qua MoMo (thẻ ATM nội địa)</option>
                 <option value="cash">Tiền mặt (Thanh toán khi nhận hàng)</option>
-              </select>
+            </select>
+              {paymentMethod === 'momo' && (
+                  <p className="mt-2 text-xs text-pink-600 dark:text-pink-400">
+                    Sau khi tạo đơn, vào "Đơn mua" và bấm "Thanh toán" để chuyển sang cổng MoMo.
+                    Bạn có 30 phút để hoàn tất kể từ lúc bấm thanh toán.
+                  </p>
+              )}
             </div>
 
             <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg">
