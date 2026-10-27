@@ -42,6 +42,7 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
     wards: false
   });
   const [addressError, setAddressError] = useState('');
+  const [momoLoading, setMomoLoading] = useState(false);
 
   const hasCompleteAddress = order && order.shippingAddress && 
     order.shippingAddress.fullName && 
@@ -51,8 +52,15 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
     order.shippingAddress.district && 
     order.shippingAddress.ward;
 
+  const isMomo = order?.paymentMethod === 'momo';
+
   useEffect(() => {
     if (isOpen && order) {
+      setPayment(null);
+      setBankQR(null);
+      setPaymentProof(null);
+      setTimeRemaining(null);
+      setStep(1);
       checkExistingPayment();
       
       // Initialize address info if incomplete
@@ -196,16 +204,19 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
     try {
       const response = await api.get(`/payments/order/${order._id}`);
       if (response.data.success && response.data.data.payment) {
-        setPayment(response.data.data.payment);
+        const p = response.data.data.payment;
+        setPayment(p);
         setBankQR(response.data.data.bankQR);
-        setTransactionCode(response.data.data.payment.transactionCode);
-        if (response.data.data.payment.status === 'rejected') {
-          setStep(2);
-        } else if (response.data.data.payment.paymentProof) {
-          setStep(3);
-        } else {
-          setStep(2);
+        setTransactionCode(p.transactionCode);
+
+        if (order.paymentMethod === 'momo') {
+          setStep(p.status === 'confirmed' ? 4 : 1);
+          return;
         }
+
+        if (p.status === 'rejected') setStep(2);
+        else if (p.paymentProof) setStep(3);
+        else setStep(2);
       }
     } catch (error) {
       setStep(1);
@@ -246,6 +257,31 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePayWithMomo = async () => {
+    if (!hasCompleteAddress &&
+        (!shippingAddress.fullName || !shippingAddress.phone || !shippingAddress.address ||
+            !shippingAddress.city || !shippingAddress.district || !shippingAddress.ward)) {
+      setAddressError('Vui lòng điền đầy đủ thông tin giao hàng (Họ tên, SĐT, Địa chỉ chi tiết, Tỉnh/Thành, Quận/Huyện, Phường/Xã)');
+      return;
+    }
+
+    setMomoLoading(true);
+    setAddressError('');
+    try {
+      const res = await api.post('/payments/momo/create', {
+        orderId: order._id,
+        ...(hasCompleteAddress ? {} : { shippingAddress })
+      });
+      if (res.data.success) {
+        window.location.href = res.data.data.payUrl;
+        return;
+      }
+    } catch (error) {
+      alert(error.response?.data?.message || 'Không thể tạo thanh toán MoMo');
+    }
+    setMomoLoading(false);
   };
 
   const handleCopyCode = () => {
@@ -644,12 +680,29 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
                   </div>
                 )}
 
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
-                  <p className="text-yellow-800 dark:text-yellow-200">
-                    ⚠️ Sau khi click "Thanh toán", bạn sẽ nhận được mã giao dịch. 
-                    Vui lòng quét QR code và chuyển khoản với nội dung là mã giao dịch này.
-                  </p>
-                </div>
+                {isMomo ? (
+                    <div className="bg-pink-50 dark:bg-pink-900/20 p-4 rounded-lg space-y-2">
+                      <p className="text-pink-800 dark:text-pink-200 text-sm">
+                        💳 Bạn sẽ được chuyển sang cổng thanh toán MoMo để nhập thông tin thẻ ATM nội địa.
+                        Không cần quét QR và không cần upload biên lai.
+                      </p>
+                      <p className="text-pink-700 dark:text-pink-300 text-xs">
+                        Thời gian thanh toán tối đa 30 phút kể từ lúc bấm nút bên dưới.
+                      </p>
+                      {payment?.status === 'pending' && timeRemaining && (
+                          <p className={`text-sm font-mono font-bold ${getTimeRemainingColor()}`}>
+                            ⏰ Còn lại: {timeRemaining}
+                          </p>
+                      )}
+                    </div>
+                ) : (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+                      <p className="text-yellow-800 dark:text-yellow-200">
+                        ⚠️ Sau khi click "Thanh toán", bạn sẽ nhận được mã giao dịch.
+                        Vui lòng quét QR code và chuyển khoản với nội dung là mã giao dịch này.
+                      </p>
+                    </div>
+                )}
 
                 {addressError && (
                   <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium">
@@ -658,17 +711,19 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
                 )}
 
                 <button
-                  onClick={handleCreatePayment}
-                  disabled={loading}
-                  className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 disabled:opacity-50 font-bold tracking-wide"
+                    onClick={isMomo ? handlePayWithMomo : handleCreatePayment}
+                    disabled={loading || momoLoading || timeRemaining === 'Đã hết hạn'}
+                    className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 disabled:opacity-50 font-bold tracking-wide"
                 >
-                  {loading ? 'Đang tạo thanh toán...' : 'Bắt đầu thanh toán'}
+                  {isMomo
+                      ? (momoLoading ? 'Đang chuyển sang MoMo...' : 'Thanh toán qua MoMo')
+                      : (loading ? 'Đang tạo thanh toán...' : 'Bắt đầu thanh toán')}
                 </button>
               </div>
             )}
 
             {/* Step 2: Show QR Code and Upload Proof */}
-            {step === 2 && bankQR && (
+            {!isMomo && step === 2 && bankQR && (
               <div className="space-y-4">
                 {/* Rejection Warning Banner */}
                 {payment && payment.status === 'rejected' && (
@@ -817,7 +872,7 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
             )}
 
             {/* Step 3: Payment Submitted */}
-            {step === 3 && payment && (
+            {!isMomo && step === 3 && payment && (
               <div className="space-y-4">
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg text-center">
                   <p className="text-yellow-800 dark:text-yellow-200 font-bold text-lg mb-2">
@@ -874,6 +929,26 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
                   Đóng
                 </button>
               </div>
+            )}
+
+            {isMomo && step === 4 && (
+                <div className="space-y-4">
+                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg text-center">
+                    <p className="text-green-800 dark:text-green-200 font-bold text-lg mb-1">
+                      ✅ Đã thanh toán qua MoMo
+                    </p>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      Đang chờ người bán xác nhận đơn hàng.
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Mã giao dịch: <span className="font-mono font-semibold">{payment?.transactionCode}</span>
+                  </p>
+                  <button onClick={onClose}
+                          className="w-full bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 py-3 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500">
+                    Đóng
+                  </button>
+                </div>
             )}
           </div>
         </div>

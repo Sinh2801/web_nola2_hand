@@ -133,7 +133,7 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['transfer', 'cash'],
+    enum: ['transfer', 'cash', 'momo'],
     default: 'transfer'
   },
   couponId: {

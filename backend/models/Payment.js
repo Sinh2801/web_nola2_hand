@@ -1,6 +1,20 @@
 const mongoose = require('mongoose');
 
 const paymentSchema = new mongoose.Schema({
+  paymentMethod: {
+    type: String, enum: ['bank_transfer', 'momo'],
+    default: 'bank_transfer'
+  },
+  momoOrderId:   {
+    type: String,
+    index: true
+  },
+  momoTransId:   {
+    type: String
+  },
+  momoResultCode:{
+    type: Number
+  },
   orderId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Order',
