@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const Offer = require('../models/Offer');
 const Product = require('../models/Product');
 const Payment = require('../models/Payment');
+const momo = require('../utils/momo');
 const { createAndEmitNotification } = require('../utils/notifications');
 
 let io = null;
@@ -127,8 +128,23 @@ const expirePayments = async () => {
     console.log(`[Cron] Found ${expiredPayments.length} expired payments`);
 
     for (const payment of expiredPayments) {
+      const isMomo = payment.paymentMethod === 'momo';
+      if (isMomo && payment.momoOrderId) {
+        try {
+          const q = await momo.queryPayment(payment.momoOrderId);
+          if (q.resultCode === 0) {
+            await momo.applyMomoResult(payment, q, io);
+            continue;
+          }
+        } catch (err) {
+          console.error('[Cron] MoMo query lỗi, bỏ qua lần này:', err.message);
+          continue;
+        }
+      }
       payment.status = 'rejected';
-      payment.rejectionReason = 'Tự động hủy do hết thời gian upload biên lai (24 giờ)';
+      payment.rejectionReason = isMomo
+          ? 'Tự động hủy do không hoàn tất thanh toán MoMo trong 30 phút'
+          : 'Tự động hủy do hết thời gian upload biên lai (24 giờ)';
       await payment.save();
 
       // Cancel related order if still pending

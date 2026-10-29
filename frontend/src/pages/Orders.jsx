@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
@@ -16,7 +16,9 @@ export default function Orders() {
   const [activeTab, setActiveTab] = useState(searchParams.get('type') || 'all');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [returnModal, setReturnModal] = useState({ isOpen: false, orderId: null, reason: '' });
+  const [returnModal, setReturnModal] = useState({ isOpen: false, orderId: null, reason: '', evidence: [] });
+  const returnReasonRef = useRef(null);
+  const [returnEvidencePreviews, setReturnEvidencePreviews] = useState([]);
   const [toast, setToast] = useState({
     isVisible: false,
     message: '',
@@ -32,6 +34,17 @@ export default function Orders() {
       title
     });
   };
+
+  useEffect(() => {
+    const previews = returnModal.evidence.map(file => ({
+      url: URL.createObjectURL(file),
+      type: file.type.startsWith('video/') ? 'video' : 'image',
+      name: file.name
+    }));
+    setReturnEvidencePreviews(previews);
+
+    return () => previews.forEach(preview => URL.revokeObjectURL(preview.url));
+  }, [returnModal.evidence]);
 
   useEffect(() => {
     // Redirect to seller dashboard if selling tab is selected
@@ -87,14 +100,26 @@ export default function Orders() {
   };
 
   const handleRequestReturn = async () => {
-    if (!returnModal.reason.trim()) {
+    const reason = returnReasonRef.current?.value?.trim() || returnModal.reason.trim();
+    if (!reason) {
       showToastMsg('Vui lòng nhập lý do hoàn hàng', 'warning', 'Cảnh báo');
       return;
     }
+    if (returnModal.evidence.length === 0) {
+      showToastMsg('Vui lòng upload ít nhất một ảnh hoặc video làm bằng chứng', 'warning', 'Thiếu bằng chứng');
+      return;
+    }
     try {
-      await api.post(`/orders/${returnModal.orderId}/return-request`, { returnReason: returnModal.reason });
+      const formData = new FormData();
+      formData.append('returnReason', reason);
+      formData.append('reason', reason);
+      returnModal.evidence.forEach(file => formData.append('returnEvidence', file));
+      await api.post(
+        `/orders/${returnModal.orderId}/return-request?returnReason=${encodeURIComponent(reason)}`,
+        formData
+      );
       showToastMsg('Đã gửi yêu cầu hoàn hàng thành công. Admin sẽ xem xét sớm nhất.', 'success', 'Đã gửi');
-      setReturnModal({ isOpen: false, orderId: null, reason: '' });
+      setReturnModal({ isOpen: false, orderId: null, reason: '', evidence: [] });
       loadOrders();
     } catch (error) {
       showToastMsg(error.response?.data?.message || 'Không thể gửi yêu cầu hoàn hàng', 'error', 'Lỗi');
@@ -130,6 +155,7 @@ export default function Orders() {
       completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
       cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
       return_requested: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+      return_rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
       returned: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200'
     };
     return badges[status] || badges.pending;
@@ -143,10 +169,15 @@ export default function Orders() {
       completed: 'Hoàn thành',
       cancelled: 'Đã hủy',
       return_requested: '⏳ Chờ duyệt hoàn hàng',
+      return_rejected: '✕ Bị từ chối hoàn hàng',
       returned: '↩ Đã hoàn hàng'
     };
     return texts[status] || status;
   };
+  const getPaymentMethodText = (m) => ({
+    cash: 'Tiền mặt', momo: 'MoMo (thẻ ATM)',
+    transfer: 'Chuyển khoản' }[m] || 'Chuyển khoản'
+  );
 
   if (!user) {
     return (
@@ -263,7 +294,7 @@ export default function Orders() {
                         {order.shippingAddress && (
                           <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                             <p>📍 Giao hàng tận nơi - {order.shippingAddress.address || order.shippingAddress.fullName}</p>
-                            <p>💳 Thanh toán: <span className="font-medium text-orange-600 dark:text-orange-400">{order.paymentMethod === 'cash' ? 'Tiền mặt' : 'Chuyển khoản'}</span></p>
+                            <p>💳 {order.paymentMethod === 'momo' ? 'Thanh toán MoMo' : 'Thanh toán'} <span className="font-medium text-orange-600 dark:text-orange-400">{getPaymentMethodText(order.paymentMethod)}</span></p>
                           </div>
                         )}
                       </div>
@@ -272,6 +303,18 @@ export default function Orders() {
                       {getStatusText(order.status)}
                     </span>
                   </div>
+
+                  {order.status === 'return_rejected' && (
+                    <div className="mt-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-sm text-red-800 dark:text-red-300">
+                      <p className="font-semibold">Yêu cầu hoàn hàng đã bị Admin từ chối.</p>
+                      <p className="mt-1">Lý do của Admin: {order.returnRejectionReason || 'Không đủ điều kiện hoàn hàng'}</p>
+                      {order.returnRejectedAt && (
+                        <p className="mt-1 text-xs text-red-700/80 dark:text-red-300/80">
+                          Từ chối lúc: {new Date(order.returnRejectedAt).toLocaleString('vi-VN')}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Action Buttons */}
                   {order.status === 'pending' && (
@@ -321,21 +364,23 @@ export default function Orders() {
                     </div>
                   )}
 
-                  {['confirmed', 'picked_up'].includes(order.status) && (
+                  {['confirmed', 'picked_up', 'completed'].includes(order.status) && (
                     <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                       {isBuyer ? (
                         <>
+                          {order.status !== 'completed' && (
+                            <button
+                              onClick={() => handleUpdateStatus(order._id, 'completed')}
+                              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                            >
+                              ✓ Xác nhận đã nhận hàng
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleUpdateStatus(order._id, 'completed')}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
-                          >
-                            ✓ Xác nhận đã nhận hàng
-                          </button>
-                          <button
-                            onClick={() => setReturnModal({ isOpen: true, orderId: order._id, reason: '' })}
+                            onClick={() => setReturnModal({ isOpen: true, orderId: order._id, reason: '', evidence: [] })}
                             className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm"
                           >
-                            ↩ Yêu cầu hoàn hàng
+                            ↩ Yêu cầu hoàn đơn
                           </button>
                         </>
                       ) : null}
@@ -387,15 +432,46 @@ export default function Orders() {
                 Lý do hoàn hàng <span className="text-red-500">*</span>
               </label>
               <textarea
+                ref={returnReasonRef}
                 value={returnModal.reason}
                 onChange={e => setReturnModal(prev => ({ ...prev, reason: e.target.value }))}
                 placeholder="Mô tả lý do bạn muốn hoàn hàng (ví dụ: sản phẩm không đúng mô tả, hàng bị hỏng...)..."
                 rows={4}
                 className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-orange-500 outline-none mb-4"
               />
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Ảnh/video bằng chứng <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+                multiple
+                onChange={e => setReturnModal(prev => ({
+                  ...prev,
+                  evidence: Array.from(e.target.files || []).slice(0, 5)
+                }))}
+                className="w-full text-sm text-gray-600 dark:text-gray-300 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 mb-1"
+              />
+              {returnEvidencePreviews.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {returnEvidencePreviews.map((preview, index) => (
+                    <div key={`${preview.url}-${index}`} className="relative h-20 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700">
+                      {preview.type === 'video' ? (
+                        <video src={preview.url} controls className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={preview.url} alt={`Bằng chứng ${index + 1}`} className="w-full h-full object-cover" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                Bắt buộc ít nhất 1 tệp, tối đa 5 tệp. Mỗi tệp không quá 20MB.
+                {returnModal.evidence.length > 0 && ` Đã chọn ${returnModal.evidence.length} tệp.`}
+              </p>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setReturnModal({ isOpen: false, orderId: null, reason: '' })}
+                  onClick={() => setReturnModal({ isOpen: false, orderId: null, reason: '', evidence: [] })}
                   className="flex-1 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-sm"
                 >
                   Hủy bỏ
@@ -422,4 +498,3 @@ export default function Orders() {
     </div>
   );
 }
-

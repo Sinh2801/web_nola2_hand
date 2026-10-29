@@ -1643,6 +1643,25 @@ function AdminDashboard() {
                         <div className="mt-3 p-3 bg-red-50/50 dark:bg-red-950/10 border border-red-100 dark:border-red-950/30 rounded-xl">
                           <p className="text-xs font-bold text-red-650 dark:text-red-400 uppercase tracking-wider mb-1">Lý do hoàn hàng:</p>
                           <p className="text-sm text-gray-700 dark:text-gray-300 italic">"{order.returnReason}"</p>
+                          {order.returnEvidence?.length > 0 && (
+                            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              {order.returnEvidence.map((evidence, index) => (
+                                <div
+                                  key={`${order._id}-return-evidence-${index}`}
+                                  className="rounded-lg overflow-hidden border border-indigo-100 dark:border-indigo-900/40 bg-white dark:bg-gray-800"
+                                >
+                                  {evidence.type === 'video' ? (
+                                    <video src={evidence.url} controls className="w-full h-24 object-cover" />
+                                  ) : (
+                                    <img src={evidence.url} alt={`Bằng chứng hoàn hàng ${index + 1}`} className="w-full h-24 object-cover" />
+                                  )}
+                                  <p className="text-[10px] text-center text-indigo-600 dark:text-indigo-400 py-1">
+                                    {evidence.type === 'video' ? '🎥 Video' : '🖼️ Ảnh'} {index + 1}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           <p className="text-[10px] text-gray-400 dark:text-gray-550 mt-2">
                             Yêu cầu lúc: {new Date(order.returnRequestedAt).toLocaleString('vi-VN')}
                           </p>
@@ -3155,4 +3174,3 @@ function AdminDashboard() {
 }
 
 export default AdminDashboard
-

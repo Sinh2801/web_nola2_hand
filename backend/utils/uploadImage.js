@@ -33,6 +33,31 @@ const upload = multer({
   }
 });
 
+const returnEvidenceUpload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 20 * 1024 * 1024,
+    files: 5
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'video/mp4',
+      'video/webm',
+      'video/quicktime'
+    ];
+
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Chỉ cho phép ảnh JPG, PNG, WebP hoặc video MP4, WebM, MOV'));
+    }
+  }
+});
+
 // Upload to Cloudinary với compression và resize tối ưu
 const uploadToCloudinary = (buffer, folder = 'dnu-marketplace') => {
   return new Promise((resolve, reject) => {
@@ -63,6 +88,30 @@ const uploadToCloudinary = (buffer, folder = 'dnu-marketplace') => {
   });
 };
 
-module.exports = { upload, uploadToCloudinary };
+const uploadReturnEvidenceToCloudinary = (buffer, mimetype, folder = 'dnu-marketplace/return-evidence') => {
+  return new Promise((resolve, reject) => {
+    const resourceType = mimetype.startsWith('video/') ? 'video' : 'image';
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: resourceType
+      },
+      (error, result) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(result);
+        }
+      }
+    );
+    uploadStream.end(buffer);
+  });
+};
 
+module.exports = {
+  upload,
+  uploadToCloudinary,
+  returnEvidenceUpload,
+  uploadReturnEvidenceToCloudinary
+};
 

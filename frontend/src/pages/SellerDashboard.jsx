@@ -263,7 +263,10 @@ export default function SellerDashboard() {
       confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
       picked_up: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
       completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+      cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      return_requested: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+      return_rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      returned: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200'
     };
     return badges[status] || badges.pending;
   };
@@ -274,7 +277,10 @@ export default function SellerDashboard() {
       confirmed: 'Đã xác nhận',
       picked_up: 'Đang giao hàng',
       completed: 'Hoàn thành',
-      cancelled: 'Đã hủy'
+      cancelled: 'Đã hủy',
+      return_requested: '⏳ Chờ duyệt hoàn đơn',
+      return_rejected: '✕ Bị từ chối hoàn đơn',
+      returned: '↩ Đã hoàn đơn'
     };
     return texts[status] || status;
   };
@@ -1034,6 +1040,9 @@ export default function SellerDashboard() {
                 <option value="all">Tất cả</option>
                 <option value="pending">Chờ xác nhận</option>
                 <option value="confirmed">Đã xác nhận</option>
+                <option value="return_requested">Chờ duyệt hoàn đơn</option>
+                <option value="return_rejected">Bị từ chối hoàn đơn</option>
+                <option value="returned">Đã hoàn đơn</option>
                 <option value="completed">Hoàn thành</option>
                 <option value="cancelled">Đã hủy</option>
               </select>
@@ -1085,6 +1094,47 @@ export default function SellerDashboard() {
                       {getStatusText(order.status)}
                     </span>
                   </div>
+
+                  {order.status === 'return_requested' && (
+                    <div className="mt-4 p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 text-sm text-orange-800 dark:text-orange-300">
+                      <p className="font-semibold">Người mua đã gửi yêu cầu hoàn đơn.</p>
+                      <p className="mt-1">Lý do: {order.returnReason || 'Không có lý do'}</p>
+                      {order.returnEvidence?.length > 0 && (
+                        <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {order.returnEvidence.map((evidence, index) => (
+                            <div
+                              key={`${order._id}-return-evidence-${index}`}
+                              className="rounded-lg overflow-hidden border border-orange-200 dark:border-orange-900/40 bg-white dark:bg-gray-800"
+                            >
+                              {evidence.type === 'video' ? (
+                                <video src={evidence.url} controls className="w-full h-20 object-cover" />
+                              ) : (
+                                <img src={evidence.url} alt={`Bằng chứng hoàn đơn ${index + 1}`} className="w-full h-20 object-cover" />
+                              )}
+                              <p className="text-[10px] text-center py-1">
+                                {evidence.type === 'video' ? '🎥 Video' : '🖼️ Ảnh'} {index + 1}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <p className="mt-1 text-xs text-orange-700/80 dark:text-orange-300/80">
+                        Admin đang xem xét và sẽ thông báo kết quả cho hai bên.
+                      </p>
+                    </div>
+                  )}
+
+                  {order.status === 'return_rejected' && (
+                    <div className="mt-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-sm text-red-800 dark:text-red-300">
+                      <p className="font-semibold">Yêu cầu hoàn đơn đã bị Admin từ chối.</p>
+                      <p className="mt-1">Lý do của Admin: {order.returnRejectionReason || 'Không đủ điều kiện hoàn đơn'}</p>
+                      {order.returnRejectedAt && (
+                        <p className="mt-1 text-xs text-red-700/80 dark:text-red-300/80">
+                          Từ chối lúc: {new Date(order.returnRejectedAt).toLocaleString('vi-VN')}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Payment and Proof Info for Pending orders */}
                   {order.status === 'pending' && (
