@@ -16,15 +16,36 @@ const userSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: [true, 'Vui lòng nhập số điện thoại'],
+    // [GOOGLE] chỉ bắt buộc khi không đăng nhập bằng Google
+    required: [
+      function () { return !this.googleId; },
+      'Vui lòng nhập số điện thoại'
+    ],
     unique: true,
+    sparse: true, // [GOOGLE] cho phép nhiều user Google chưa có phone
     trim: true
   },
   password: {
     type: String,
-    required: [true, 'Vui lòng nhập mật khẩu'],
+    // [GOOGLE] chỉ bắt buộc khi không đăng nhập bằng Google
+    required: [
+      function () { return !this.googleId; },
+      'Vui lòng nhập mật khẩu'
+    ],
     minlength: 6,
     select: false
+  },
+  // [GOOGLE] thêm mới
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  // [GOOGLE] thêm mới
+  authProvider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local'
   },
   address: {
     type: String,
@@ -167,13 +188,8 @@ userSchema.pre('save', async function(next) {
 
 // Compare password method
 userSchema.methods.comparePassword = async function(enteredPassword) {
+  if (!this.password) return false; // [GOOGLE] user Google chưa có mật khẩu
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
 module.exports = mongoose.model('User', userSchema);
-
-
-
-
-
-
