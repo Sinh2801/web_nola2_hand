@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const paymentSchema = new mongoose.Schema({
   paymentMethod: {
-    type: String, enum: ['bank_transfer', 'momo'],
+    type: String, enum: ['bank_transfer', 'momo', 'vnpay'],
     default: 'bank_transfer'
   },
   momoOrderId:   {
@@ -14,6 +14,15 @@ const paymentSchema = new mongoose.Schema({
   },
   momoResultCode:{
     type: Number
+  },
+  vnpayTxnRef:{
+    type: String, index: true
+  },
+  vnpayTransId:{
+    type: String
+  },
+  vnpayResponseCode:{
+    type: String
   },
   orderId: {
     type: mongoose.Schema.Types.ObjectId,
