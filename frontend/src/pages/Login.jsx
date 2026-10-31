@@ -58,7 +58,7 @@ export default function Login() {
 
           <div className="flex items-center gap-4 mb-8 mt-12">
             <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-xl shadow-orange-500/20">
-              <span className="text-3xl font-black text-orange-500">D</span>
+              <span className="text-3xl font-black text-orange-500">N</span>
             </div>
             <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-md">
               nola2hand<span className="text-orange-500">Market</span>
