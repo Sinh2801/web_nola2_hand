@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { Provider } from 'react-redux'
 import { BrowserRouter } from 'react-router-dom'
+import { GoogleOAuthProvider } from '@react-oauth/google' // [GOOGLE] thêm mới
 import App from './App'
 import { store } from './store/store'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -21,26 +22,21 @@ if (!rootElement) {
   document.body.innerHTML = '<div style="padding: 20px; color: red;"><h1>Error: Root element not found!</h1><p>Please check index.html</p></div>'
 } else {
   ReactDOM.createRoot(rootElement).render(
-    <React.StrictMode>
-      <ErrorBoundary>
-        <Provider store={store}>
-          <BrowserRouter>
-            <ToastProvider>
-              <ConfirmProvider>
-                <App />
-              </ConfirmProvider>
-            </ToastProvider>
-          </BrowserRouter>
-        </Provider>
-      </ErrorBoundary>
-    </React.StrictMode>,
+      <React.StrictMode>
+        <ErrorBoundary>
+          {/* [GOOGLE] thêm mới */}
+          <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
+            <Provider store={store}>
+              <BrowserRouter>
+                <ToastProvider>
+                  <ConfirmProvider>
+                    <App />
+                  </ConfirmProvider>
+                </ToastProvider>
+              </BrowserRouter>
+            </Provider>
+          </GoogleOAuthProvider>
+        </ErrorBoundary>
+      </React.StrictMode>,
   )
 }
-
-
-
-
-
-
-
-

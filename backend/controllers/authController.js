@@ -4,6 +4,7 @@ const PendingPasswordReset = require('../models/PendingPasswordReset');
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
 const generateToken = require('../utils/generateToken');
+const { OAuth2Client } = require('google-auth-library'); // [GOOGLE] thêm mới
 
 // @desc    Register user (chỉ lưu tạm thời, chưa tạo tài khoản)
 // @route   POST /api/auth/register
@@ -13,10 +14,10 @@ exports.register = async (req, res) => {
     const { name, email, phone, password, address, studentId } = req.body;
 
     // Check if user already exists in database
-    const userExists = await User.findOne({ 
-      $or: [{ email }, { phone }] 
+    const userExists = await User.findOne({
+      $or: [{ email }, { phone }]
     });
-    
+
     if (userExists) {
       return res.status(400).json({
         success: false,
@@ -153,7 +154,7 @@ exports.register = async (req, res) => {
     if (error.keyPattern) {
       console.error('Duplicate key pattern:', error.keyPattern);
     }
-    
+
     // Handle duplicate key error (MongoDB unique constraint)
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern || {})[0] || 'email hoặc số điện thoại';
@@ -163,7 +164,7 @@ exports.register = async (req, res) => {
         details: 'Vui lòng sử dụng email/số điện thoại khác hoặc liên hệ admin nếu bạn vừa xóa tài khoản'
       });
     }
-    
+
     // Handle validation errors
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors || {}).map(err => err.message).join(', ');
@@ -172,7 +173,7 @@ exports.register = async (req, res) => {
         message: messages || 'Dữ liệu không hợp lệ'
       });
     }
-    
+
     // Handle CastError (invalid ObjectId, etc)
     if (error.name === 'CastError') {
       return res.status(400).json({
@@ -180,7 +181,7 @@ exports.register = async (req, res) => {
         message: 'Dữ liệu không hợp lệ: ' + error.message
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: error.message || 'Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại sau.',
@@ -237,8 +238,8 @@ exports.verifyOTP = async (req, res) => {
     }
 
     // Check if user already exists (double check)
-    const existingUser = await User.findOne({ 
-      $or: [{ email: pendingRegistration.email }, { phone: pendingRegistration.phone }] 
+    const existingUser = await User.findOne({
+      $or: [{ email: pendingRegistration.email }, { phone: pendingRegistration.phone }]
     });
 
     if (existingUser) {
@@ -278,7 +279,7 @@ exports.verifyOTP = async (req, res) => {
     });
   } catch (error) {
     console.error('Verify OTP error:', error);
-    
+
     // Handle duplicate key error (in case user was created between check and create)
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern || {})[0] || 'email hoặc số điện thoại';
@@ -512,15 +513,135 @@ exports.login = async (req, res) => {
   }
 };
 
+// [GOOGLE] THÊM MỚI
+// @desc    Login / Register with Google
+// @route   POST /api/auth/google
+// @access  Public
+exports.googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu Google credential'
+      });
+    }
+
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      console.error('GOOGLE_CLIENT_ID chưa được cấu hình trong .env');
+      return res.status(500).json({
+        success: false,
+        message: 'Đăng nhập Google chưa được cấu hình. Vui lòng liên hệ admin.'
+      });
+    }
+
+    // Xác minh ID token với Google
+    let payload;
+    try {
+      const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      console.error('Google token verify failed:', err.message);
+      return res.status(401).json({
+        success: false,
+        message: 'Token Google không hợp lệ'
+      });
+    }
+
+    const { email, name, picture, email_verified, sub } = payload;
+
+    if (!email || !email_verified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email Google chưa được xác minh'
+      });
+    }
+
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      // Tạo tài khoản mới (không có phone/password, schema cho phép khi có googleId)
+      user = await User.create({
+        name: name || email.split('@')[0],
+        email,
+        avatar: picture || '',
+        googleId: sub,
+        authProvider: 'google',
+        isVerified: true
+      });
+      console.log(`✅ New user created via Google: ${user.email}`);
+    } else {
+      // Check if user is active
+      if (!user.isActive) {
+        return res.status(401).json({
+          success: false,
+          message: 'Tài khoản của bạn đã bị khóa'
+        });
+      }
+
+      if (!user.googleId) {
+        // Tài khoản đã đăng ký thường -> liên kết với Google
+        user.googleId = sub;
+        user.isVerified = true;
+        if (!user.avatar && picture) user.avatar = picture;
+        await user.save();
+      } else if (user.googleId !== sub) {
+        return res.status(401).json({
+          success: false,
+          message: 'Email này đã liên kết với tài khoản Google khác'
+        });
+      }
+    }
+
+    // Generate token (giống login thường)
+    const token = generateToken(user._id);
+
+    // Populate followers and following
+    await user.populate('followers', 'name avatar');
+    await user.populate('following', 'name avatar');
+
+    // Response giống hệt login thường
+    res.json({
+      success: true,
+      token,
+      data: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        isVerified: user.isVerified,
+        isAdmin: user.isAdmin,
+        isSuperAdmin: user.isSuperAdmin || false,
+        followers: user.followers || [],
+        following: user.following || [],
+        rating: user.rating || { average: 0, count: 0 },
+        isShipper: user.isShipper || false,
+        shipperStatus: user.shipperStatus || 'none'
+      }
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Đăng nhập Google thất bại'
+    });
+  }
+};
+
 // @desc    Get current logged in user
 // @route   GET /api/auth/me
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
-      .select('-password -verificationToken -resetPasswordToken -resetPasswordExpire')
-      .populate('followers', 'name avatar')
-      .populate('following', 'name avatar');
+        .select('-password -verificationToken -resetPasswordToken -resetPasswordExpire')
+        .populate('followers', 'name avatar')
+        .populate('following', 'name avatar');
 
     res.json({
       success: true,
@@ -558,9 +679,9 @@ exports.forgotPassword = async (req, res) => {
     }
 
     // Check if there's an existing pending reset
-    const existingReset = await PendingPasswordReset.findOne({ 
-      email, 
-      type: 'forgot' 
+    const existingReset = await PendingPasswordReset.findOne({
+      email,
+      type: 'forgot'
     });
 
     if (existingReset) {
@@ -672,9 +793,9 @@ exports.verifyOTPAndResetPassword = async (req, res) => {
     }
 
     // Find pending password reset
-    const pendingReset = await PendingPasswordReset.findOne({ 
-      email, 
-      type: 'forgot' 
+    const pendingReset = await PendingPasswordReset.findOne({
+      email,
+      type: 'forgot'
     });
 
     if (!pendingReset) {
@@ -777,9 +898,9 @@ exports.requestChangePassword = async (req, res) => {
     }
 
     // Check if there's an existing pending change
-    const existingChange = await PendingPasswordReset.findOne({ 
-      userId: user._id, 
-      type: 'change' 
+    const existingChange = await PendingPasswordReset.findOne({
+      userId: user._id,
+      type: 'change'
     });
 
     if (existingChange) {
@@ -891,9 +1012,9 @@ exports.verifyOTPAndChangePassword = async (req, res) => {
     }
 
     // Find pending password change
-    const pendingChange = await PendingPasswordReset.findOne({ 
-      userId: req.user.id, 
-      type: 'change' 
+    const pendingChange = await PendingPasswordReset.findOne({
+      userId: req.user.id,
+      type: 'change'
     });
 
     if (!pendingChange) {
@@ -962,11 +1083,3 @@ exports.logout = async (req, res) => {
     message: 'Đăng xuất thành công'
   });
 };
-
-
-
-
-
-
-
-

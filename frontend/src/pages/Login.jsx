@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Link } from 'react-router-dom'
-import { login, clearError } from '../store/slices/authSlice'
+import { GoogleLogin } from '@react-oauth/google' // [GOOGLE] thêm mới
+import { login, googleLogin, clearError } from '../store/slices/authSlice' // [GOOGLE] thêm googleLogin
 import PasswordInput from '../components/PasswordInput'
 
 export default function Login() {
@@ -29,6 +30,12 @@ export default function Login() {
     dispatch(login(formData))
   }
 
+  // [GOOGLE] thêm mới
+  const handleGoogleSuccess = (credentialResponse) => {
+    if (credentialResponse?.credential) {
+      dispatch(googleLogin(credentialResponse.credential))
+    }
+  }
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-white dark:bg-gray-900 font-sans">
       {/* Left side - Image/Branding */}
@@ -58,7 +65,7 @@ export default function Login() {
 
           <div className="flex items-center gap-4 mb-8 mt-12">
             <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-xl shadow-orange-500/20">
-              <span className="text-3xl font-black text-orange-500">N</span>
+              <span className="text-3xl font-black text-orange-500">D</span>
             </div>
             <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-md">
               nola2hand<span className="text-orange-500">Market</span>
@@ -193,6 +200,27 @@ export default function Login() {
               </button>
             </div>
           </form>
+
+          {/* [GOOGLE] thêm mới - Đăng nhập bằng Google */}
+          <div className="relative my-2">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-3 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 font-medium">
+                hoặc
+              </span>
+            </div>
+          </div>
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => console.error('Đăng nhập Google thất bại')}
+              text="signin_with"
+              shape="pill"
+              locale="vi"
+            />
+          </div>
 
           {/* Mobile Branding (only visible on small screens) */}
           <div className="mt-12 md:hidden text-center">

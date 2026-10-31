@@ -5,6 +5,7 @@ const {
   verifyOTP,
   resendVerificationCode,
   login,
+  googleLogin, // [GOOGLE] thêm mới
   getMe,
   forgotPassword,
   verifyOTPAndResetPassword,
@@ -27,8 +28,9 @@ const router = express.Router();
 router.post('/register', authLimiter, validateRegister, register);
 router.post('/verify-otp', validateVerifyOTP, verifyOTP);
 router.post('/resend-verification', authLimiter, resendVerificationCode);
-router.get('/verify/:token', verifyEmail); 
+router.get('/verify/:token', verifyEmail);
 router.post('/login', authLimiter, validateLogin, login);
+router.post('/google', authLimiter, googleLogin); // [GOOGLE] thêm mới
 router.post('/forgotpassword', authLimiter, validateForgotPassword, forgotPassword);
 router.post('/verify-otp-reset-password', authLimiter, validateVerifyOTP, verifyOTPAndResetPassword);
 
@@ -39,11 +41,3 @@ router.post('/verify-otp-change-password', protect, verifyOTPAndChangePassword);
 router.post('/logout', protect, logout);
 
 module.exports = router;
-
-
-
-
-
-
-
-
