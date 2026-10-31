@@ -9,7 +9,13 @@ const {
   rejectPayment,
   getAllPayments,
   getMyPayments,
-  confirmCODReceived, momoIpn, createMomoPayment, getMomoStatus
+  confirmCODReceived,
+  createMomoPayment,
+  momoIpn,
+  getMomoStatus,
+  createVnpayPayment,
+  vnpayIpn,
+  vnpayReturn
 } = require('../controllers/paymentController');
 const { protect, authorize } = require('../middleware/auth');
 const { paymentLimiter, uploadLimiter } = require('../middleware/rateLimiter');
@@ -52,5 +58,11 @@ router.post('/momo/ipn', momoIpn);
 router.post('/momo/create', paymentLimiter, protect, validateCreatePayment, createMomoPayment);
 
 router.get('/momo/status/:momoOrderId', protect, getMomoStatus);
+
+router.get('/vnpay/ipn', vnpayIpn);
+
+router.post('/vnpay/create', paymentLimiter, protect, validateCreatePayment, createVnpayPayment);
+
+router.get('/vnpay/return', protect, vnpayReturn);
 
 module.exports = router;

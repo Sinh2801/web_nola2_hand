@@ -6,6 +6,8 @@ const BankQR = require('../models/BankQR');
 const generateTransactionCode = require('../utils/generateTransactionCode');
 const { uploadToCloudinary } = require('../utils/uploadImage');
 const { createAndEmitNotification } = require('../utils/notifications');
+const vnpayUtil = require('../utils/vnpay');
+const createPaymentRecord = require('../utils/createPaymentRecord');
 
 // @desc    Create payment (when buyer clicks "Thanh toán")
 // @route   POST /api/payments
@@ -792,8 +794,16 @@ exports.createMomoPayment = async (req, res) => {
     const result = await momo.createAtmPayment({
       momoOrderId, amount: payment.amount, orderInfo: `Thanh toan don ${payment.transactionCode}`,
     });
-    if (result.resultCode !== 0)
-      return res.status(400).json({ success: false, message: result.message || 'Không tạo được thanh toán MoMo' });
+    if (result.resultCode !== 0) {
+      console.error('[MoMo create] resultCode:', result.resultCode, '-', result.message,
+          '| amount:', payment.amount, '| orderId:', momoOrderId);
+      return res.status(502).json({
+        success: false,
+        message: result.resultCode === 99
+            ? 'Cổng MoMo đang gặp sự cố, vui lòng thử lại sau ít phút'
+            : (result.message || 'Không tạo được thanh toán MoMo')
+      });
+    }
 
     payment.paymentMethod = 'momo';
     payment.momoOrderId = momoOrderId;
@@ -821,8 +831,8 @@ exports.momoIpn = async (req, res) => {
     await momo.applyMomoResult(payment, req.body, req.app.get('io'));
     res.sendStatus(204);
   } catch (e) {
-    console.error('MoMo IPN error:', e);
-    res.sendStatus(500);
+    console.error('Error creating MoMo payment:', e.response?.data || e.message);
+    res.status(500).json({ success: false, message: 'Không thể tạo thanh toán MoMo' });
   }
 };
 
@@ -839,3 +849,104 @@ exports.getMomoStatus = async (req, res) => {
   res.json({ success: true, data: { status: payment.status, orderId: payment.orderId } });
 };
 
+const getIp = (req) => {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || '127.0.0.1';
+  return ip === '::1' ? '127.0.0.1' : ip.replace('::ffff:', '');
+};
+
+// @desc    Tạo link thanh toán VNPay
+// @route   POST /api/payments/vnpay/create
+// @access  Private
+exports.createVnpayPayment = async (req, res) => {
+  try {
+    const { orderId, shippingAddress } = req.body;
+    const order = await Order.findById(orderId).populate('buyerId', 'name phone');
+    if (!order) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+    if (order.buyerId._id.toString() !== req.user.id)
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền thanh toán đơn hàng này' });
+    if (order.status !== 'pending' || order.paymentMethod !== 'vnpay')
+      return res.status(400).json({ success: false, message: 'Đơn hàng không hợp lệ để thanh toán VNPay' });
+
+    if (shippingAddress) { order.shippingAddress = shippingAddress; await order.save(); }
+
+    let payment = await Payment.findOne({ orderId });
+    if (payment?.status === 'confirmed')
+      return res.status(400).json({ success: false, message: 'Đơn hàng đã được thanh toán' });
+    if (!payment) payment = await createPaymentRecord(order, { paymentMethod: 'vnpay' });
+
+    const txnRef = `${payment.transactionCode}-${Date.now()}`;
+    const payUrl = vnpayUtil.buildPayUrl({
+      txnRef,
+      amount: payment.amount,
+      orderInfo: `Thanh toan don ${payment.transactionCode}`,
+      ipAddr: getIp(req),
+    });
+
+    payment.paymentMethod = 'vnpay';
+    payment.vnpayTxnRef = txnRef;
+    payment.status = 'pending';
+    payment.rejectionReason = null;
+    payment.expiresAt = new Date(Date.now() + 30 * 60 * 1000);   // 30 phút, khớp vnp_ExpireDate
+    await payment.save();
+
+    res.json({ success: true, data: { payUrl } });
+  } catch (e) {
+    console.error('Error creating VNPay payment:', e.message);
+    res.status(500).json({ success: false, message: 'Không thể tạo thanh toán VNPay' });
+  }
+};
+
+// @desc    IPN: VNPay gọi vào (GET, public). Luôn phải trả JSON có RspCode.
+// @route   GET /api/payments/vnpay/ipn
+// @access  Public
+exports.vnpayIpn = async (req, res) => {
+  const { IPN } = vnpayUtil;
+  try {
+    const verify = vnpayUtil.verifyIpn(req.query);
+    if (!verify.isVerified) return res.json(IPN.IpnFailChecksum);
+
+    const payment = await Payment.findOne({ vnpayTxnRef: verify.vnp_TxnRef });
+    if (!payment) return res.json(IPN.IpnOrderNotFound);
+    if (verify.vnp_Amount !== payment.amount) return res.json(IPN.IpnInvalidAmount);
+    if (payment.status === 'confirmed') return res.json(IPN.InpOrderAlreadyConfirmed);
+
+    await vnpayUtil.applyVnpayResult(payment, {
+      isSuccess: verify.isSuccess,
+      transId: verify.vnp_TransactionNo,
+      code: verify.vnp_ResponseCode,
+    }, req.app.get('io'));
+
+    return res.json(IPN.IpnSuccess);
+  } catch (e) {
+    console.error('VNPay IPN error:', e.message);
+    return res.json(vnpayUtil.IPN.IpnUnknownError);
+  }
+};
+
+// @desc    Trang kết quả gọi để xác thực và đồng bộ trạng thái
+// @route   GET /api/payments/vnpay/return
+// @access  Private
+exports.vnpayReturn = async (req, res) => {
+  try {
+    const verify = vnpayUtil.verifyReturn(req.query);
+    if (!verify.isVerified)
+      return res.status(400).json({ success: false, message: 'Dữ liệu trả về không hợp lệ' });
+
+    const payment = await Payment.findOne({ vnpayTxnRef: verify.vnp_TxnRef });
+    if (!payment || payment.buyerId.toString() !== req.user.id)
+      return res.status(404).json({ success: false, message: 'Không tìm thấy giao dịch' });
+
+    if (verify.isSuccess && verify.vnp_Amount === payment.amount) {
+      await vnpayUtil.applyVnpayResult(payment, {
+        isSuccess: true,
+        transId: verify.vnp_TransactionNo,
+        code: verify.vnp_ResponseCode,
+      }, req.app.get('io'));
+    }
+
+    res.json({ success: true, data: { status: payment.status, orderId: payment.orderId } });
+  } catch (e) {
+    console.error('VNPay return error:', e.message);
+    res.status(400).json({ success: false, message: 'Không xác thực được kết quả thanh toán' });
+  }
+};

@@ -15,13 +15,20 @@ exports.createAtmPayment = async ({ momoOrderId, amount, orderInfo }) => {
     const raw = `accessKey=${AK}&amount=${amount}&extraData=${extraData}&ipnUrl=${MOMO_IPN_URL}` +
         `&orderId=${momoOrderId}&orderInfo=${orderInfo}&partnerCode=${PC}` +
         `&redirectUrl=${MOMO_REDIRECT_URL}&requestId=${requestId}&requestType=${requestType}`;
-    const { data } = await axios.post(`${BASE}/create`, {
+    const body = {
         partnerCode: PC, partnerName: 'Hội Chợ 2hand', storeId: 'Store2hand',
         requestId, orderId: momoOrderId, amount, orderInfo, extraData, requestType,
         redirectUrl: MOMO_REDIRECT_URL, ipnUrl: MOMO_IPN_URL, lang: 'vi',
         signature: sign(raw),
-    });
-    return data;
+    };
+
+    try {
+        const { data } = await axios.post(`${BASE}/create`, body, { timeout: 30000 });
+        return data;
+    } catch (err) {
+        if (err.response?.data) return err.response.data;   // MoMo trả JSON lỗi (vd resultCode 99)
+        throw err;                                           // lỗi mạng / timeout
+    }
 };
 
 exports.queryPayment = async (momoOrderId) => {
