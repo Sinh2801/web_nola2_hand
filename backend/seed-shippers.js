@@ -40,7 +40,7 @@ const seedShippers = async () => {
 
     for (let i = 1; i <= TOTAL_SHIPPERS; i++) {
       const name = `Shipper ${i}`;
-      const email = `shipper${i}@dnu.edu.vn`;
+      const email = `shipper${i}@st.hcmuaf.edu.vn`;
       const phone = `099988877${i}`;
 
       const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
