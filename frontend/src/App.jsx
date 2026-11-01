@@ -37,7 +37,7 @@ import Explore from './pages/Explore'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 import ShipperDashboard from './pages/ShipperDashboard'
-import MomoResult from './pages/MomoResult';
+import PaymentResult from './pages/PaymentResult.jsx';
 
 function App() {
   console.log(' App component rendered')
@@ -73,7 +73,8 @@ function App() {
           <Route path="/chat" element={<Chat />} />
           <Route path="/chat/:userId" element={<Chat />} />
           <Route path="/orders" element={<Orders />} />
-          <Route path="/payment/momo-result" element={<MomoResult />} />
+          <Route path="/payment/momo-result" element={<PaymentResult gateway="momo" />} />
+          <Route path="/payment/vnpay-result" element={<PaymentResult gateway="vnpay" />} />
           <Route path="/payments" element={<MyPayments />} />
           <Route path="/offers" element={<Offers />} />
           <Route path="/seller-dashboard" element={<SellerDashboard />} />
