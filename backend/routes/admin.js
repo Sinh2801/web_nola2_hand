@@ -10,6 +10,7 @@ const {
   rejectProduct,
   checkEmailConfig,
   getRevenueStats,
+  getRevenueTable,
   dismissReports
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
@@ -31,5 +32,5 @@ router.put('/products/:id/approve', approveProduct);
 router.put('/products/:id/reject', rejectProduct);
 router.get('/reports', getReports);
 router.put('/products/:id/dismiss-reports', dismissReports);
-
+router.get('/revenue-table', getRevenueTable);
 module.exports = router;

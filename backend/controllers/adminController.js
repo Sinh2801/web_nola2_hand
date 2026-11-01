@@ -545,34 +545,80 @@ exports.checkEmailConfig = async (req, res) => {
 // @access  Admin
 exports.getRevenueStats = async (req, res) => {
   try {
-    const { timeRange = 'month' } = req.query; // 'day', 'week', 'month', 'year', 'all'
-    
-    // Calculate date range
+    const {
+      filterType = 'range',
+      timeRange = 'month',
+      date: selectedDate,
+      month: selectedMonth
+    } = req.query;
     const now = new Date();
     let startDate = null;
-    
-    switch (timeRange) {
-      case 'day':
-        startDate = new Date(now.setDate(now.getDate() - 1));
-        break;
-      case 'week':
-        startDate = new Date(now.setDate(now.getDate() - 7));
-        break;
-      case 'month':
-        startDate = new Date(now.setMonth(now.getMonth() - 1));
-        break;
-      case 'year':
-        startDate = new Date(now.setFullYear(now.getFullYear() - 1));
-        break;
-      default:
-        startDate = null;
+    let endDate = null;
+
+    if (filterType === 'date') {
+      const dateParts = typeof selectedDate === 'string' && selectedDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!dateParts) {
+        return res.status(400).json({ success: false, message: 'Ngày không hợp lệ' });
+      }
+
+      startDate = new Date(Date.UTC(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3])));
+      if (startDate.toISOString().slice(0, 10) !== selectedDate) {
+        return res.status(400).json({ success: false, message: 'Ngày không hợp lệ' });
+      }
+      endDate = new Date(startDate);
+      endDate.setUTCDate(endDate.getUTCDate() + 1);
+    } else if (filterType === 'specificMonth') {
+      const monthParts = typeof selectedMonth === 'string' && selectedMonth.match(/^(\d{4})-(\d{2})$/);
+      if (!monthParts || Number(monthParts[2]) < 1 || Number(monthParts[2]) > 12) {
+        return res.status(400).json({ success: false, message: 'Tháng không hợp lệ' });
+      }
+
+      startDate = new Date(Date.UTC(Number(monthParts[1]), Number(monthParts[2]) - 1, 1));
+      endDate = new Date(Date.UTC(Number(monthParts[1]), Number(monthParts[2]), 1));
+    } else if (filterType === 'range') {
+      switch (timeRange) {
+        case 'day':
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - 1);
+          break;
+        case 'week':
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - 7);
+          break;
+        case 'month':
+          startDate = new Date(now);
+          startDate.setMonth(startDate.getMonth() - 1);
+          break;
+        case 'year':
+          startDate = new Date(now);
+          startDate.setFullYear(startDate.getFullYear() - 1);
+          break;
+        case 'all':
+          break;
+        default:
+          return res.status(400).json({ success: false, message: 'Khoảng thời gian không hợp lệ' });
+      }
+      endDate = now;
+    } else {
+      return res.status(400).json({ success: false, message: 'Loại bộ lọc không hợp lệ' });
     }
 
-    const dateFilter = startDate ? { confirmedAt: { $gte: startDate }, status: 'confirmed' } : { status: 'confirmed' };
+    const paymentDateFilter = startDate
+      ? { confirmedAt: { $gte: startDate, $lt: endDate } }
+      : {};
+    const confirmedMatch = { status: 'confirmed', ...paymentDateFilter };
+    const statusPeriodMatch = startDate
+      ? {
+          $or: [
+            { status: 'confirmed', confirmedAt: { $gte: startDate, $lt: endDate } },
+            { status: { $in: ['pending', 'rejected'] }, createdAt: { $gte: startDate, $lt: endDate } }
+          ]
+        }
+      : {};
 
     // Total revenue
     const revenueResult = await Payment.aggregate([
-      { $match: { status: 'confirmed', ...dateFilter } },
+      { $match: confirmedMatch },
       { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
     ]);
     const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
@@ -580,6 +626,7 @@ exports.getRevenueStats = async (req, res) => {
 
     // Revenue by status
     const statusStats = await Payment.aggregate([
+      { $match: statusPeriodMatch },
       {
         $group: {
           _id: '$status',
@@ -589,13 +636,23 @@ exports.getRevenueStats = async (req, res) => {
       }
     ]);
 
-    // Revenue by day (last 30 days)
+    const dailyChartMatch = filterType === 'range' && timeRange === 'all'
+      ? {
+          status: 'confirmed',
+          confirmedAt: { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), $lt: now }
+        }
+      : confirmedMatch;
+    const monthlyChartMatch = filterType === 'range' && timeRange === 'all'
+      ? {
+          status: 'confirmed',
+          confirmedAt: { $gte: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000), $lt: now }
+        }
+      : confirmedMatch;
+
+    // Revenue by day within the selected period
     const dailyRevenue = await Payment.aggregate([
       {
-        $match: {
-          status: 'confirmed',
-          confirmedAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
-        }
+        $match: dailyChartMatch
       },
       {
         $group: {
@@ -609,13 +666,10 @@ exports.getRevenueStats = async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // Revenue by month (last 12 months)
+    // Revenue by month within the selected period
     const monthlyRevenue = await Payment.aggregate([
       {
-        $match: {
-          status: 'confirmed',
-          confirmedAt: { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
-        }
+        $match: monthlyChartMatch
       },
       {
         $group: {
@@ -631,7 +685,7 @@ exports.getRevenueStats = async (req, res) => {
 
     // Top products by revenue
     const topProducts = await Payment.aggregate([
-      { $match: { status: 'confirmed' } },
+      { $match: confirmedMatch },
       {
         $lookup: {
           from: 'orders',
@@ -696,7 +750,65 @@ exports.getRevenueStats = async (req, res) => {
   }
 };
 
+exports.getRevenueTable = async (req, res) => {
+  try {
+    const { filterType, timeRange, date, month } = req.query;
+    const HOUR = 3600 * 1000;
+    const match = { status: 'confirmed' };
+    let from, to;
 
+    if (filterType === 'date') {
+      // 00:00 → 24:00 giờ Việt Nam của ngày đã chọn
+      from = new Date(`${date}T00:00:00+07:00`);
+      to = new Date(from.getTime() + 24 * HOUR);
+    } else if (filterType === 'specificMonth') {
+      const [y, m] = month.split('-').map(Number);
+      from = new Date(Date.UTC(y, m - 1, 1) - 7 * HOUR);
+      to = new Date(Date.UTC(y, m, 1) - 7 * HOUR);
+    } else if (timeRange === 'year') {
+      to = new Date();
+      from = new Date(to);
+      from.setMonth(from.getMonth() - 12);
+    }
+    if (from) match.confirmedAt = { $gte: from, $lt: to };
 
+    // Chọn ngày cụ thể → liệt kê từng đơn
+    if (filterType === 'date') {
+      const list = await Payment.find(match)
+        .sort({ confirmedAt: -1 })
+        .populate({
+          path: 'orderId',
+          select: 'productId',
+          populate: { path: 'productId', select: 'title' }
+        })
+        .lean();
+      return res.json({
+        mode: 'orders',
+        rows: list.map(p => ({
+          id: p.transactionCode,
+          sanpham: p.orderId?.productId?.title || 'Sản phẩm không còn tồn tại',
+          doanhthu: p.amount
+        }))
+      });
+    }
+
+    // Tháng / khoảng thời gian → gộp theo ngày
+    const rows = await Payment.aggregate([
+      { $match: match },
+      { $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$confirmedAt', timezone: 'Asia/Ho_Chi_Minh' } },
+          sodon: { $sum: 1 },
+          doanhthu: { $sum: '$amount' }
+      } },
+      { $project: { _id: 0, day: '$_id', sodon: 1, doanhthu: 1 } },
+      { $sort: { day: -1 } }
+    ]);
+
+    res.json({ mode: 'days', rows });
+  } catch (e) {
+    console.error('Error revenue table:', e);
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
 
 
