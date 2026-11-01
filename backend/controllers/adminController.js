@@ -41,7 +41,7 @@ exports.updateUser = async (req, res) => {
     const userId = req.params.id;
     const currentAdminId = req.user.id;
     const isCurrentUserSuperAdmin = req.user.isSuperAdmin;
-    
+
     const user = await User.findById(userId);
 
     if (!user) {
@@ -91,7 +91,7 @@ exports.updateUser = async (req, res) => {
       const wasAdmin = user.isAdmin;
       user.isAdmin = isAdmin;
       updates.isAdmin = isAdmin;
-      
+
       if (isAdmin && !wasAdmin) {
         messages.push('Bổ nhiệm làm admin');
       } else if (!isAdmin && wasAdmin) {
@@ -101,9 +101,9 @@ exports.updateUser = async (req, res) => {
 
     await user.save();
 
-    const actionMessage = messages.length > 0 
-      ? messages.join(' và ') 
-      : 'Cập nhật người dùng';
+    const actionMessage = messages.length > 0
+        ? messages.join(' và ')
+        : 'Cập nhật người dùng';
 
     console.log(`✅ ${isCurrentUserSuperAdmin ? 'Super Admin' : 'Admin'} ${req.user.email} ${actionMessage.toLowerCase()} cho ${user.email}`);
 
@@ -126,22 +126,22 @@ exports.updateUser = async (req, res) => {
 exports.getPendingProducts = async (req, res) => {
   try {
     console.log('Admin getPendingProducts called by:', req.user?.email);
-    
+
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
-    const products = await Product.find({ 
-      isApproved: false, 
-      status: 'Available' 
+    const products = await Product.find({
+      isApproved: false,
+      status: 'Available'
     })
-      .populate('userId', 'name email phone')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(Number(limit));
+        .populate('userId', 'name email phone')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit));
 
-    const total = await Product.countDocuments({ 
-      isApproved: false, 
-      status: 'Available' 
+    const total = await Product.countDocuments({
+      isApproved: false,
+      status: 'Available'
     });
 
     console.log(`Found ${products.length} pending products out of ${total} total`);
@@ -187,12 +187,12 @@ exports.approveProduct = async (req, res) => {
     // Create and emit notification for the seller
     const io = req.app.get('io');
     await createAndEmitNotification(
-      io,
-      product.userId,
-      'product_approved',
-      'Sản phẩm đã được duyệt',
-      `Sản phẩm "${product.title}" của bạn đã được duyệt và hiển thị trên website.`,
-      { productId: product._id, productName: product.title }
+        io,
+        product.userId,
+        'product_approved',
+        'Sản phẩm đã được duyệt',
+        `Sản phẩm "${product.title}" của bạn đã được duyệt và hiển thị trên website.`,
+        { productId: product._id, productName: product.title }
     );
 
     res.json({
@@ -213,12 +213,12 @@ exports.approveProduct = async (req, res) => {
 // @access  Admin
 exports.getReports = async (req, res) => {
   try {
-    const products = await Product.find({ 
+    const products = await Product.find({
       'reports.0': { $exists: true },
       status: 'Available'
     })
-      .populate('userId', 'name email')
-      .sort({ createdAt: -1 });
+        .populate('userId', 'name email')
+        .sort({ createdAt: -1 });
 
     res.json({
       success: true,
@@ -273,20 +273,20 @@ exports.getStats = async (req, res) => {
     const availableProducts = await Product.countDocuments({ status: 'Available', isApproved: true });
     const soldProducts = await Product.countDocuments({ status: 'Sold' });
     const pendingProducts = await Product.countDocuments({ isApproved: false, status: 'Available' });
-    
+
     // Payment stats
     const totalPayments = await Payment.countDocuments();
     const confirmedPayments = await Payment.countDocuments({ status: 'confirmed' });
     const pendingPayments = await Payment.countDocuments({ status: 'pending' });
     const rejectedPayments = await Payment.countDocuments({ status: 'rejected' });
-    
+
     // Total revenue from confirmed payments
     const revenueResult = await Payment.aggregate([
       { $match: { status: 'confirmed' } },
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
     const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
-    
+
     // Category stats
     const categoryStats = await Product.aggregate([
       { $match: { isApproved: true } },
@@ -347,12 +347,12 @@ exports.rejectProduct = async (req, res) => {
     // Create and emit notification for the seller
     const io = req.app.get('io');
     await createAndEmitNotification(
-      io,
-      product.userId,
-      'product_rejected',
-      'Sản phẩm đã bị từ chối',
-      `Sản phẩm "${product.title}" của bạn đã bị từ chối.`,
-      { productId: product._id, productName: product.title }
+        io,
+        product.userId,
+        'product_rejected',
+        'Sản phẩm đã bị từ chối',
+        `Sản phẩm "${product.title}" của bạn đã bị từ chối.`,
+        { productId: product._id, productName: product.title }
     );
 
     res.json({
@@ -411,14 +411,14 @@ exports.deleteUser = async (req, res) => {
     // Delete or update related data
     // 1. Delete user's products (or mark as deleted)
     await Product.updateMany(
-      { userId: userId },
-      { status: 'Deleted', isApproved: false }
+        { userId: userId },
+        { status: 'Deleted', isApproved: false }
     );
 
     // 2. Delete user's orders (or mark as cancelled)
     await Order.updateMany(
-      { $or: [{ buyerId: userId }, { sellerId: userId }] },
-      { status: 'cancelled', cancelledAt: new Date() }
+        { $or: [{ buyerId: userId }, { sellerId: userId }] },
+        { status: 'cancelled', cancelledAt: new Date() }
     );
 
     // 3. Delete user's offers
@@ -435,8 +435,8 @@ exports.deleteUser = async (req, res) => {
     await Comment.deleteMany({ userId: userId });
     // Also remove user from comment replies
     await Comment.updateMany(
-      { 'replies.userId': userId },
-      { $pull: { replies: { userId: userId } } }
+        { 'replies.userId': userId },
+        { $pull: { replies: { userId: userId } } }
     );
 
     // 6. Delete user's reviews
@@ -455,27 +455,27 @@ exports.deleteUser = async (req, res) => {
 
     // 10. Remove user from other users' favorites
     await User.updateMany(
-      { favorites: userId },
-      { $pull: { favorites: userId } }
+        { favorites: userId },
+        { $pull: { favorites: userId } }
     );
 
     // 11. Remove user from followers/following of other users
     await User.updateMany(
-      { followers: userId },
-      { $pull: { followers: userId } }
+        { followers: userId },
+        { $pull: { followers: userId } }
     );
     await User.updateMany(
-      { following: userId },
-      { $pull: { following: userId } }
+        { following: userId },
+        { $pull: { following: userId } }
     );
 
     // 12. Finally, delete the user
     // Store email and phone before deletion for logging
     const deletedEmail = user.email;
     const deletedPhone = user.phone;
-    
+
     const deleteResult = await User.findByIdAndDelete(userId);
-    
+
     if (!deleteResult) {
       return res.status(500).json({
         success: false,
@@ -528,9 +528,9 @@ exports.checkEmailConfig = async (req, res) => {
       success: true,
       configured: isConfigured,
       config: config,
-      message: isConfigured 
-        ? 'Email đã được cấu hình' 
-        : 'Email chưa được cấu hình. Vui lòng kiểm tra file backend/.env'
+      message: isConfigured
+          ? 'Email đã được cấu hình'
+          : 'Email chưa được cấu hình. Vui lòng kiểm tra file backend/.env'
     });
   } catch (error) {
     res.status(500).json({
@@ -540,17 +540,133 @@ exports.checkEmailConfig = async (req, res) => {
   }
 };
 
+// @desc    Doanh thu sàn theo từng ngày (chọn khoảng ngày bất kỳ) kèm sản phẩm bán mỗi ngày
+// @route   GET /api/admin/revenue-daily?from=YYYY-MM-DD&to=YYYY-MM-DD
+// @access  Admin
+exports.getRevenueDaily = async (req, res) => {
+  try {
+    // Gom ngày theo giờ Việt Nam (UTC+7) để doanh thu không bị lệch ngày
+    const TZ_OFFSET_MS = 7 * 60 * 60 * 1000;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const MAX_DAYS = 92;
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    const dayKey = (d) => new Date(new Date(d).getTime() + TZ_OFFSET_MS).toISOString().slice(0, 10);
+    const startOfDay = (key) => new Date(new Date(`${key}T00:00:00.000Z`).getTime() - TZ_OFFSET_MS);
+
+    let { from, to } = req.query;
+    if (!dateRe.test(to || '')) to = dayKey(new Date());
+    if (!dateRe.test(from || '')) from = dayKey(new Date(Date.now() - 29 * DAY_MS));
+    if (isNaN(startOfDay(from)) || isNaN(startOfDay(to))) {
+      return res.status(400).json({ success: false, message: 'Ngày không hợp lệ' });
+    }
+    if (from > to) [from, to] = [to, from];
+    const spanDays = Math.round((startOfDay(to) - startOfDay(from)) / DAY_MS) + 1;
+    if (spanDays > MAX_DAYS) {
+      from = dayKey(new Date(startOfDay(to).getTime() - (MAX_DAYS - 1) * DAY_MS));
+    }
+
+    const rangeStart = startOfDay(from);
+    const rangeEnd = new Date(startOfDay(to).getTime() + DAY_MS);
+
+    // Cùng tiêu chí với trang thống kê hiện tại: giao dịch đã xác nhận, tính theo ngày xác nhận
+    const payments = await Payment.find({
+      status: 'confirmed',
+      confirmedAt: { $gte: rangeStart, $lt: rangeEnd }
+    })
+        .select('orderId amount platformFee vatAmount platformFeePercent vatPercent confirmedAt')
+        .populate({
+          path: 'orderId',
+          select: 'productId sellerId',
+          populate: [
+            { path: 'productId', select: 'title images category' },
+            { path: 'sellerId', select: 'name' }
+          ]
+        })
+        .lean();
+
+    // Tạo sẵn đủ các ngày trong khoảng (ngày không có giao dịch = 0)
+    const dayMap = new Map();
+    const productsByDay = new Map();
+    const totalDays = Math.round((startOfDay(to) - startOfDay(from)) / DAY_MS) + 1;
+    for (let i = 0; i < totalDays; i++) {
+      const key = dayKey(new Date(startOfDay(from).getTime() + i * DAY_MS));
+      dayMap.set(key, { date: key, revenue: 0, fee: 0, orders: 0 });
+      productsByDay.set(key, new Map());
+    }
+
+    let totalRevenue = 0;
+    let totalFee = 0;
+    let totalOrders = 0;
+
+    for (const pay of payments) {
+      const key = dayKey(pay.confirmedAt);
+      const day = dayMap.get(key);
+      if (!day) continue;
+
+      const amount = pay.amount || 0;
+      let fee = (pay.platformFee || 0) + (pay.vatAmount || 0);
+      if (!fee && amount) {
+        const f = Math.round(amount * (pay.platformFeePercent ?? 5) / 100);
+        fee = f + Math.round(f * (pay.vatPercent ?? 10) / 100);
+      }
+
+      day.revenue += amount;
+      day.fee += fee;
+      day.orders += 1;
+      totalRevenue += amount;
+      totalFee += fee;
+      totalOrders += 1;
+
+      const order = pay.orderId && typeof pay.orderId === 'object' ? pay.orderId : null;
+      const product = order && order.productId && typeof order.productId === 'object' ? order.productId : null;
+      const seller = order && order.sellerId && typeof order.sellerId === 'object' ? order.sellerId : null;
+      const productKey = product ? String(product._id) : 'unknown';
+      const bucket = productsByDay.get(key);
+      if (!bucket.has(productKey)) {
+        bucket.set(productKey, {
+          _id: product ? product._id : null,
+          title: product ? product.title : 'Sản phẩm đã bị xóa',
+          image: product && product.images && product.images[0] ? product.images[0] : null,
+          category: product ? product.category : null,
+          sellerName: seller ? seller.name : null,
+          quantity: 0,
+          revenue: 0,
+          fee: 0
+        });
+      }
+      const row = bucket.get(productKey);
+      row.quantity += 1;
+      row.revenue += amount;
+      row.fee += fee;
+    }
+
+    const days = [...dayMap.values()];
+    const products = {};
+    for (const [key, bucket] of productsByDay) {
+      products[key] = [...bucket.values()].sort((a, b) => b.revenue - a.revenue);
+    }
+
+    res.json({
+      success: true,
+      data: { from, to, totalRevenue, totalFee, totalOrders, days, products }
+    });
+  } catch (error) {
+    console.error('Error getting daily revenue:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // @desc    Get revenue statistics
 // @route   GET /api/admin/revenue-stats
 // @access  Admin
 exports.getRevenueStats = async (req, res) => {
   try {
     const { timeRange = 'month' } = req.query; // 'day', 'week', 'month', 'year', 'all'
-    
+
     // Calculate date range
     const now = new Date();
     let startDate = null;
-    
+
     switch (timeRange) {
       case 'day':
         startDate = new Date(now.setDate(now.getDate() - 1));
@@ -695,8 +811,3 @@ exports.getRevenueStats = async (req, res) => {
     });
   }
 };
-
-
-
-
-

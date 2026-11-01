@@ -240,7 +240,7 @@ export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }
               Đơn hàng thành công!
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 px-2 leading-relaxed">
-              {paymentMethod === 'momo'
+              {paymentMethod === ['momo', 'vnpay'].includes(paymentMethod)
                   ? 'Đã tạo đơn hàng! Vui lòng vào "Đơn mua" và bấm "Thanh toán" để thanh toán qua MoMo.'
                   : 'Đã tạo đơn hàng thành công! Vui lòng chờ người bán xác nhận đơn hàng của bạn.'}
             </p>
@@ -337,11 +337,11 @@ export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }
                   required>
                 <option value="transfer">Chuyển khoản (QR ngân hàng)</option>
                 <option value="momo">Thanh toán qua MoMo (thẻ ATM nội địa)</option>
+                <option value="vnpay">Thanh toán qua VNPay (thẻ ATM/ngân hàng)</option>
                 <option value="cash">Tiền mặt (Thanh toán khi nhận hàng)</option>
             </select>
-              {paymentMethod === 'momo' && (
+              {paymentMethod === ['momo', 'vnpay'].includes(paymentMethod) && (
                   <p className="mt-2 text-xs text-pink-600 dark:text-pink-400">
-                    Sau khi tạo đơn, vào "Đơn mua" và bấm "Thanh toán" để chuyển sang cổng MoMo.
                     Bạn có 30 phút để hoàn tất kể từ lúc bấm thanh toán.
                   </p>
               )}
