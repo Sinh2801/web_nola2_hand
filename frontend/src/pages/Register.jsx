@@ -30,7 +30,13 @@ export default function Register() {
     e.preventDefault()
     
     if (formData.password !== formData.confirmPassword) {
+      dispatch(clearError())
       alert('Mật khẩu xác nhận không khớp')
+      return
+    }
+
+    if (formData.password.length < 6 || !/[a-z]/.test(formData.password) || !/[A-Z]/.test(formData.password) || !/\d/.test(formData.password)) {
+      alert('Mật khẩu phải có ít nhất 6 ký tự, gồm chữ hoa, chữ thường và chữ số')
       return
     }
 
@@ -169,7 +175,10 @@ export default function Register() {
                 <PasswordInput
                   name="password"
                   required
-                  placeholder="Tối thiểu 6 ký tự"
+                  minLength={6}
+                  pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}"
+                  title="Mật khẩu phải có ít nhất 6 ký tự, gồm chữ hoa, chữ thường và chữ số"
+                  placeholder="Ít nhất 6 ký tự: Hoa, thường, số"
                   className="block w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all font-medium"
                   value={formData.password}
                   onChange={handleChange}

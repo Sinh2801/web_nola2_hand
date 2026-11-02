@@ -11,7 +11,15 @@ const { OAuth2Client } = require('google-auth-library'); // [GOOGLE] thêm mới
 // @access  Public
 exports.register = async (req, res) => {
   try {
-    const { name, email, phone, password, address, studentId } = req.body;
+    const {
+      name,
+      email: rawEmail,
+      phone,
+      password,
+      address,
+      studentId
+    } = req.body;
+    const email = rawEmail.trim().toLowerCase();
 
     // Check if user already exists in database
     const userExists = await User.findOne({
@@ -97,8 +105,6 @@ exports.register = async (req, res) => {
       // Check if email is configured
       if (!senderEmail || !senderPassword) {
         console.warn('Email not configured - skipping email send');
-        // Delete pending registration if email not configured
-        await PendingRegistration.deleteOne({ _id: pendingRegistration._id });
         return res.status(500).json({
           success: false,
           message: 'Email chưa được cấu hình. Vui lòng liên hệ admin.'
@@ -126,24 +132,11 @@ exports.register = async (req, res) => {
       });
     } catch (error) {
       console.error('Email sending failed:', error);
-      // Delete pending registration if email sending fails
-      await PendingRegistration.deleteOne({ _id: pendingRegistration._id });
-
-      // In development, show verification code
-      if (process.env.NODE_ENV === 'development') {
-        return res.status(200).json({
-          success: true,
-          message: 'Không thể gửi email. Mã xác minh (DEV): ' + verificationCode,
-          data: {
-            email: pendingRegistration.email,
-            verificationCode: verificationCode // Show in dev mode
-          }
-        });
-      }
-
       return res.status(500).json({
         success: false,
-        message: 'Không thể gửi email xác minh. Vui lòng thử lại sau.'
+        message: process.env.NODE_ENV === 'development'
+          ? `Không thể gửi email xác minh: ${error.message}`
+          : 'Không thể gửi email xác minh. Vui lòng kiểm tra cấu hình email hoặc thử lại sau.'
       });
     }
   } catch (error) {
@@ -200,7 +193,8 @@ exports.register = async (req, res) => {
 // @access  Public
 exports.verifyOTP = async (req, res) => {
   try {
-    const { email, code } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
+    const { code } = req.body;
 
     if (!email || !code) {
       return res.status(400).json({
@@ -301,7 +295,7 @@ exports.verifyOTP = async (req, res) => {
 // @access  Public
 exports.resendVerificationCode = async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
 
     if (!email) {
       return res.status(400).json({
@@ -320,13 +314,9 @@ exports.resendVerificationCode = async (req, res) => {
       });
     }
 
-    // Generate new 6-digit verification code
+    // Generate a new code, but only replace the current code after email succeeds.
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     const verificationCodeExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    pendingRegistration.verificationCode = verificationCode;
-    pendingRegistration.verificationCodeExpire = new Date(verificationCodeExpire);
-    await pendingRegistration.save();
 
     // Send verification email with OTP code
     const htmlMessage = `
@@ -381,14 +371,21 @@ exports.resendVerificationCode = async (req, res) => {
         fromPassword: senderPassword
       });
 
+      pendingRegistration.verificationCode = verificationCode;
+      pendingRegistration.verificationCodeExpire = new Date(verificationCodeExpire);
+      await pendingRegistration.save();
+
       res.json({
         success: true,
         message: 'Mã xác minh mới đã được gửi đến email của bạn'
       });
     } catch (error) {
+      console.error('Resend verification email failed:', error);
       return res.status(500).json({
         success: false,
-        message: 'Không thể gửi email xác minh. Vui lòng thử lại sau.'
+        message: process.env.NODE_ENV === 'development'
+          ? `Không thể gửi lại email xác minh: ${error.message}`
+          : 'Không thể gửi lại email xác minh. Vui lòng thử lại sau.'
       });
     }
   } catch (error) {
@@ -860,12 +857,12 @@ exports.verifyOTPAndResetPassword = async (req, res) => {
 // @access  Private
 exports.requestChangePassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { email, currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
+    if (!email || !currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng nhập mật khẩu hiện tại và mật khẩu mới'
+        message: 'Vui lòng nhập email, mật khẩu hiện tại và mật khẩu mới'
       });
     }
 
@@ -875,6 +872,20 @@ exports.requestChangePassword = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy người dùng'
+      });
+    }
+
+    if (user.email.toLowerCase() !== email.trim().toLowerCase()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email xác nhận không khớp với tài khoản đang đăng nhập'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải có ít nhất 6 ký tự'
       });
     }
 
@@ -1002,18 +1013,19 @@ exports.requestChangePassword = async (req, res) => {
 // @access  Private
 exports.verifyOTPAndChangePassword = async (req, res) => {
   try {
-    const { code } = req.body;
+    const { email, code } = req.body;
 
-    if (!code) {
+    if (!email || !code) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng nhập mã xác minh'
+        message: 'Vui lòng nhập email và mã xác minh'
       });
     }
 
     // Find pending password change
     const pendingChange = await PendingPasswordReset.findOne({
       userId: req.user.id,
+      email: email.trim().toLowerCase(),
       type: 'change'
     });
 
