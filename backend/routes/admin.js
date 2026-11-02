@@ -11,6 +11,7 @@ const {
   checkEmailConfig,
   getRevenueStats,
   getRevenueTable,
+  getRevenueDaily,
   dismissReports
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
@@ -23,6 +24,7 @@ router.use(authorize());
 
 router.get('/stats', getStats);
 router.get('/revenue-stats', getRevenueStats);
+router.get('/revenue-daily', getRevenueDaily);
 router.get('/check-email-config', checkEmailConfig);
 router.get('/users', getUsers);
 router.put('/users/:id', updateUser);

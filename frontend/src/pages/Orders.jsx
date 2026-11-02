@@ -175,7 +175,7 @@ export default function Orders() {
     return texts[status] || status;
   };
   const getPaymentMethodText = (m) => ({
-    cash: 'Tiền mặt', momo: 'MoMo (thẻ ATM)',
+    cash: 'Tiền mặt', momo: 'MoMo (thẻ ATM)', vnpay: 'VNPay',
     transfer: 'Chuyển khoản' }[m] || 'Chuyển khoản'
   );
 
@@ -294,7 +294,7 @@ export default function Orders() {
                         {order.shippingAddress && (
                           <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                             <p>📍 Giao hàng tận nơi - {order.shippingAddress.address || order.shippingAddress.fullName}</p>
-                            <p>💳 {order.paymentMethod === 'momo' ? 'Thanh toán MoMo' : 'Thanh toán'} <span className="font-medium text-orange-600 dark:text-orange-400">{getPaymentMethodText(order.paymentMethod)}</span></p>
+                            <p>💳 Thanh toán: <span className="font-medium text-orange-600 dark:text-orange-400">{getPaymentMethodText(order.paymentMethod)}</span></p>
                           </div>
                         )}
                       </div>
@@ -328,7 +328,7 @@ export default function Orders() {
                             }}
                             className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
                           >
-                            💳 Thanh toán
+                            💳 {order.paymentMethod === 'momo' ? 'Thanh toán MoMo' : order.paymentMethod === 'vnpay' ? 'Thanh toán VNPay' : 'Thanh toán'}
                           </button>
                           <button
                             onClick={() => {

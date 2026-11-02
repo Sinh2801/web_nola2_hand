@@ -38,76 +38,100 @@ const updateUserRating = async (userId) => {
   }
 };
 
+// Helper: cập nhật điểm trung bình của sản phẩm (chỉ tính đánh giá của người mua)
+const updateProductRating = async (productId) => {
+  try {
+    if (!productId) return;
+    const stats = await Review.aggregate([
+      { $match: { productId: new mongoose.Types.ObjectId(productId), isSeller: false } },
+      { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } }
+    ]);
+    await Product.findByIdAndUpdate(productId, {
+      averageRating: stats.length ? Math.round(stats[0].avg * 10) / 10 : 0,
+      totalReviews: stats.length ? stats[0].count : 0
+    });
+  } catch (error) {
+    console.error('Error updating product rating:', error);
+  }
+};
+
 // Tạo đánh giá mới
+// CHỈ người thật sự tham gia đơn hàng đã hoàn thành mới được đánh giá:
+//  - người mua đánh giá người bán / sản phẩm
+//  - người bán đánh giá người mua
+// Người được đánh giá, sản phẩm và vai trò (isSeller) đều lấy từ đơn hàng, KHÔNG tin dữ liệu client gửi lên.
 const createReview = async (req, res) => {
   try {
-    const { transactionId, reviewedUserId, productId, rating, comment, isSeller, orderId } = req.body;
+    const { transactionId, productId: bodyProductId, rating, comment, orderId } = req.body;
     const reviewerId = req.user.id;
 
-    // Validate order if orderId provided (review based on transaction)
+    const ratingNum = Number(rating);
+    if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Số sao phải từ 1 đến 5'
+      });
+    }
+
+    // Tìm đơn hàng làm căn cứ đánh giá
+    let order = null;
     if (orderId) {
-      const order = await Order.findById(orderId);
-      if (!order) {
-        return res.status(404).json({
-          success: false,
-          message: 'Không tìm thấy đơn hàng'
-        });
-      }
+      order = await Order.findById(orderId);
+    } else if (bodyProductId) {
+      // Client không gửi orderId: tìm đơn đã hoàn thành của chính người này với sản phẩm đó
+      order = await Order.findOne({
+        productId: bodyProductId,
+        status: 'completed',
+        $or: [{ buyerId: reviewerId }, { sellerId: reviewerId }]
+      }).sort({ completedAt: -1 });
+    }
 
-      // Check if order is completed
-      if (order.status !== 'completed') {
-        return res.status(400).json({
-          success: false,
-          message: 'Chỉ có thể đánh giá sau khi giao dịch hoàn thành'
-        });
-      }
-
-      // Check if user is part of this order
-      const isBuyer = order.buyerId.toString() === reviewerId;
-      const isSeller = order.sellerId.toString() === reviewerId;
-      
-      if (!isBuyer && !isSeller) {
-        return res.status(403).json({
-          success: false,
-          message: 'Bạn không có quyền đánh giá đơn hàng này'
-        });
-      }
-
-      // Check if already reviewed this order
-      const existingReview = await Review.findOne({
-        orderId,
-        reviewerId,
-        reviewedUserId
+    if (!order) {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ người đã mua sản phẩm mới được đánh giá'
       });
+    }
 
-      if (existingReview) {
-        return res.status(400).json({
-          success: false,
-          message: 'Bạn đã đánh giá giao dịch này rồi'
-        });
-      }
-    } else {
-      // For reviews without order (legacy support)
-      const existingReview = await Review.findOne({
-        transactionId,
-        reviewerId,
-        reviewedUserId
+    if (order.status !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể đánh giá sau khi giao dịch hoàn thành'
       });
+    }
 
-      if (existingReview) {
-        return res.status(400).json({
-          success: false,
-          message: 'Bạn đã đánh giá giao dịch này rồi'
-        });
-      }
+    const isBuyer = order.buyerId.toString() === reviewerId;
+    const isOrderSeller = order.sellerId.toString() === reviewerId;
+    if (!isBuyer && !isOrderSeller) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền đánh giá đơn hàng này'
+      });
+    }
+
+    // Lấy thông tin từ đơn hàng
+    const reviewedUserId = isBuyer ? order.sellerId : order.buyerId;
+    const productId = order.productId;
+    const isSeller = isOrderSeller; // true nếu người đánh giá là người bán
+
+    // Mỗi người chỉ đánh giá 1 lần cho mỗi đơn
+    const existingReview = await Review.findOne({
+      orderId: order._id,
+      reviewerId
+    });
+    if (existingReview) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bạn đã đánh giá giao dịch này rồi'
+      });
     }
 
     // Handle image uploads
     let reviewImages = [];
     if (req.files && req.files.length > 0) {
       try {
-        const uploadPromises = req.files.map(file => 
-          uploadToCloudinary(file.buffer, 'dnu-marketplace/reviews')
+        const uploadPromises = req.files.map(file =>
+            uploadToCloudinary(file.buffer, 'dnu-marketplace/reviews')
         );
         const results = await Promise.all(uploadPromises);
         reviewImages = results.map(result => result.secure_url);
@@ -122,12 +146,12 @@ const createReview = async (req, res) => {
 
     // Tạo review mới
     const review = new Review({
-      transactionId: transactionId || orderId?.toString() || `review_${Date.now()}`,
-      orderId: orderId || null,
+      transactionId: transactionId || order._id.toString(),
+      orderId: order._id,
       reviewerId,
       reviewedUserId,
       productId,
-      rating,
+      rating: ratingNum,
       comment,
       images: reviewImages,
       isSeller
@@ -138,17 +162,18 @@ const createReview = async (req, res) => {
     // AI phân tích sentiment từ comment (bất đồng bộ, không chặn response)
     if (review.comment && review.comment.trim()) {
       analyzeSentiment(review.comment)
-        .then(({ sentiment, score }) => {
-          return Review.findByIdAndUpdate(review._id, { sentiment, sentimentScore: score }, { new: true });
-        })
-        .catch(err => console.error('Sentiment analysis error:', err));
+          .then(({ sentiment, score }) => {
+            return Review.findByIdAndUpdate(review._id, { sentiment, sentimentScore: score }, { new: true });
+          })
+          .catch(err => console.error('Sentiment analysis error:', err));
     }
 
     // Populate thông tin người đánh giá
     await review.populate('reviewerId', 'name email avatar');
 
-    // Cập nhật average rating cho user được đánh giá
+    // Cập nhật điểm trung bình
     await updateUserRating(reviewedUserId);
+    if (!isSeller) await updateProductRating(productId);
 
     // Create notification for product owner if review is for a product
     try {
@@ -157,12 +182,12 @@ const createReview = async (req, res) => {
         if (product && product.userId._id.toString() !== reviewerId.toString()) {
           const io = req.app.get('io');
           await createAndEmitNotification(
-            io,
-            product.userId._id,
-            'new_review',
-            'Có đánh giá mới',
-            `${req.user.name} đã đánh giá sản phẩm "${product.title}" của bạn`,
-            { productId: product._id, reviewId: review._id, productName: product.title, rating }
+              io,
+              product.userId._id,
+              'new_review',
+              'Có đánh giá mới',
+              `${req.user.name} đã đánh giá sản phẩm "${product.title}" của bạn`,
+              { productId: product._id, reviewId: review._id, productName: product.title, rating: ratingNum }
           );
         }
       }
@@ -184,20 +209,22 @@ const createReview = async (req, res) => {
   }
 };
 
-// Lấy đánh giá của một sản phẩm
+// Lấy đánh giá của một sản phẩm (chỉ đánh giá của người mua, để khớp với phần tóm tắt sao)
 const getProductReviews = async (req, res) => {
   try {
     const { productId } = req.params;
     const { page = 1, limit = 10 } = req.query;
 
-    const reviews = await Review.find({ productId })
-      .populate('reviewerId', 'name email avatar')
-      .populate('reviewedUserId', 'name email avatar')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+    const filter = { productId, isSeller: false };
 
-    const total = await Review.countDocuments({ productId });
+    const reviews = await Review.find(filter)
+        .populate('reviewerId', 'name email avatar')
+        .populate('reviewedUserId', 'name email avatar')
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
+
+    const total = await Review.countDocuments(filter);
 
     res.json({
       success: true,
@@ -224,11 +251,11 @@ const getUserReviews = async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
 
     const reviews = await Review.find({ reviewedUserId: userId })
-      .populate('reviewerId', 'name email avatar')
-      .populate('productId', 'title images')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+        .populate('reviewerId', 'name email avatar')
+        .populate('productId', 'title images')
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
 
     const total = await Review.countDocuments({ reviewedUserId: userId });
 
@@ -258,12 +285,20 @@ const getUserReviews = async (req, res) => {
   }
 };
 
-// Cập nhật đánh giá
+// Cập nhật đánh giá (chỉ chủ đánh giá, chỉ sửa số sao và nội dung)
 const updateReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
     const { rating, comment } = req.body;
     const userId = req.user.id;
+
+    const ratingNum = Number(rating);
+    if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Số sao phải từ 1 đến 5'
+      });
+    }
 
     const review = await Review.findOne({ _id: reviewId, reviewerId: userId });
 
@@ -274,12 +309,13 @@ const updateReview = async (req, res) => {
       });
     }
 
-    review.rating = rating;
+    review.rating = ratingNum;
     review.comment = comment;
     await review.save();
 
     // Cập nhật lại average rating
     await updateUserRating(review.reviewedUserId);
+    if (!review.isSeller) await updateProductRating(review.productId);
 
     res.json({
       success: true,
@@ -311,10 +347,13 @@ const deleteReview = async (req, res) => {
     }
 
     const reviewedUserId = review.reviewedUserId;
+    const productId = review.productId;
+    const wasSeller = review.isSeller;
     await Review.findByIdAndDelete(reviewId);
 
     // Cập nhật lại average rating
     await updateUserRating(reviewedUserId);
+    if (!wasSeller) await updateProductRating(productId);
 
     res.json({
       success: true,
@@ -394,7 +433,7 @@ const syncAllUserRatings = async (req, res) => {
 
     // Lấy tất cả users có reviews
     const usersWithReviews = await Review.distinct('reviewedUserId');
-    
+
     let updatedCount = 0;
     for (const userId of usersWithReviews) {
       await updateUserRating(userId);
@@ -403,8 +442,8 @@ const syncAllUserRatings = async (req, res) => {
 
     // Reset rating cho users không có reviews
     await User.updateMany(
-      { _id: { $nin: usersWithReviews } },
-      { 'rating.average': 0, 'rating.count': 0 }
+        { _id: { $nin: usersWithReviews } },
+        { 'rating.average': 0, 'rating.count': 0 }
     );
 
     res.json({
@@ -429,5 +468,6 @@ module.exports = {
   deleteReview,
   getUserReviewStats,
   syncAllUserRatings,
-  updateUserRating // Export để có thể dùng ở nơi khác nếu cần
+  updateUserRating, // Export để có thể dùng ở nơi khác nếu cần
+  updateProductRating
 };

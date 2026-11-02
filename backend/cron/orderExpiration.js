@@ -129,6 +129,7 @@ const expirePayments = async () => {
 
     for (const payment of expiredPayments) {
       const isMomo = payment.paymentMethod === 'momo';
+      const isVnpay = payment.paymentMethod === 'vnpay';
       if (isMomo && payment.momoOrderId) {
         try {
           const q = await momo.queryPayment(payment.momoOrderId);
@@ -144,7 +145,9 @@ const expirePayments = async () => {
       payment.status = 'rejected';
       payment.rejectionReason = isMomo
           ? 'Tự động hủy do không hoàn tất thanh toán MoMo trong 30 phút'
-          : 'Tự động hủy do hết thời gian upload biên lai (24 giờ)';
+          : isVnpay
+              ? 'Tự động hủy do không hoàn tất thanh toán VNPay trong 30 phút'
+              : 'Tự động hủy do hết thời gian upload biên lai (24 giờ)';
       await payment.save();
 
       // Cancel related order if still pending

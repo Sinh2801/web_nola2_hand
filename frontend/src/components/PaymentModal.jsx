@@ -53,6 +53,9 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
     order.shippingAddress.ward;
 
   const isMomo = order?.paymentMethod === 'momo';
+  const isVnpay = order?.paymentMethod === 'vnpay';
+  const isOnline = isMomo || isVnpay;
+  const gatewayName = isVnpay ? 'VNPay' : 'MoMo';
 
   useEffect(() => {
     if (isOpen && order) {
@@ -209,7 +212,7 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
         setBankQR(response.data.data.bankQR);
         setTransactionCode(p.transactionCode);
 
-        if (order.paymentMethod === 'momo') {
+        if (isOnline) {
           setStep(p.status === 'confirmed' ? 4 : 1);
           return;
         }
@@ -259,7 +262,7 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
     }
   };
 
-  const handlePayWithMomo = async () => {
+  const handlePayOnline = async () => {
     if (!hasCompleteAddress &&
         (!shippingAddress.fullName || !shippingAddress.phone || !shippingAddress.address ||
             !shippingAddress.city || !shippingAddress.district || !shippingAddress.ward)) {
@@ -270,7 +273,7 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
     setMomoLoading(true);
     setAddressError('');
     try {
-      const res = await api.post('/payments/momo/create', {
+      const res = await api.post(`/payments/${isVnpay ? 'vnpay' : 'momo'}/create`, {
         orderId: order._id,
         ...(hasCompleteAddress ? {} : { shippingAddress })
       });
@@ -279,7 +282,7 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
         return;
       }
     } catch (error) {
-      alert(error.response?.data?.message || 'Không thể tạo thanh toán MoMo');
+      alert(error.response?.data?.message || `Không thể tạo thanh toán ${gatewayName}`);
     }
     setMomoLoading(false);
   };
@@ -711,19 +714,19 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
                 )}
 
                 <button
-                    onClick={isMomo ? handlePayWithMomo : handleCreatePayment}
+                    onClick={isOnline ? handlePayOnline : handleCreatePayment}
                     disabled={loading || momoLoading || timeRemaining === 'Đã hết hạn'}
                     className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 disabled:opacity-50 font-bold tracking-wide"
                 >
-                  {isMomo
-                      ? (momoLoading ? 'Đang chuyển sang MoMo...' : 'Thanh toán qua MoMo')
+                  {isOnline
+                      ? (momoLoading ? `Đang chuyển sang ${gatewayName}...` : `Thanh toán qua ${gatewayName}`)
                       : (loading ? 'Đang tạo thanh toán...' : 'Bắt đầu thanh toán')}
                 </button>
               </div>
             )}
 
             {/* Step 2: Show QR Code and Upload Proof */}
-            {!isMomo && step === 2 && bankQR && (
+            {!isOnline && step === 2 && bankQR && (
               <div className="space-y-4">
                 {/* Rejection Warning Banner */}
                 {payment && payment.status === 'rejected' && (
@@ -872,7 +875,7 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
             )}
 
             {/* Step 3: Payment Submitted */}
-            {!isMomo && step === 3 && payment && (
+            {!isOnline && step === 3 && payment && (
               <div className="space-y-4">
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg text-center">
                   <p className="text-yellow-800 dark:text-yellow-200 font-bold text-lg mb-2">
@@ -931,11 +934,11 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
               </div>
             )}
 
-            {isMomo && step === 4 && (
+            {isOnline && step === 4 && (
                 <div className="space-y-4">
                   <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg text-center">
                     <p className="text-green-800 dark:text-green-200 font-bold text-lg mb-1">
-                      ✅ Đã thanh toán qua MoMo
+                      ✅ Đã thanh toán qua {gatewayName}
                     </p>
                     <p className="text-sm text-green-700 dark:text-green-300">
                       Đang chờ người bán xác nhận đơn hàng.

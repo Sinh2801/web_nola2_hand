@@ -1,11 +1,16 @@
 const Comment = require('../models/Comment');
 const Product = require('../models/Product');
 const Post = require('../models/Post');
+const Order = require('../models/Order');
 const { createAndEmitNotification } = require('../utils/notifications');
+
+// Các trạng thái đơn coi như "đã mua" (người mua đã nhận hàng)
+const PURCHASED_STATUSES = ['completed', 'return_requested', 'return_rejected', 'returned'];
 
 // @desc    Create comment (for product or post)
 // @route   POST /api/products/:productId/comments or POST /api/posts/:postId/comments
 // @access  Private
+// Bình luận sản phẩm: CHỈ người đã mua, mỗi người 1 bình luận (sau đó chỉ được sửa)
 exports.createComment = async (req, res) => {
   try {
     const { content } = req.body;
@@ -25,6 +30,32 @@ exports.createComment = async (req, res) => {
     // Determine if it's a product or post comment
     if (req.params.productId) {
       commentData.productId = req.params.productId;
+
+      // Chỉ người đã mua mới được bình luận sản phẩm
+      const hasBought = await Order.exists({
+        buyerId: req.user.id,
+        productId: req.params.productId,
+        status: { $in: PURCHASED_STATUSES }
+      });
+      if (!hasBought) {
+        return res.status(403).json({
+          success: false,
+          message: 'Chỉ người đã mua sản phẩm mới được bình luận và đánh giá'
+        });
+      }
+
+      // Mỗi người chỉ bình luận 1 lần, sau đó chỉ được sửa
+      const existing = await Comment.findOne({
+        productId: req.params.productId,
+        userId: req.user.id
+      }).select('_id');
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          message: 'Bạn đã bình luận sản phẩm này rồi, hãy chỉnh sửa bình luận cũ',
+          existingCommentId: existing._id
+        });
+      }
     } else if (req.params.postId) {
       commentData.postId = req.params.postId;
     } else {
@@ -59,24 +90,24 @@ exports.createComment = async (req, res) => {
         const product = await Product.findById(commentData.productId).populate('userId');
         if (product && product.userId._id.toString() !== req.user.id) {
           await createAndEmitNotification(
-            io,
-            product.userId._id,
-            'new_comment',
-            'Có bình luận mới',
-            `${req.user.name} đã bình luận trên sản phẩm "${product.title}" của bạn`,
-            { productId: product._id, commentId: comment._id, productName: product.title }
+              io,
+              product.userId._id,
+              'new_comment',
+              'Có bình luận mới',
+              `${req.user.name} đã bình luận trên sản phẩm "${product.title}" của bạn`,
+              { productId: product._id, commentId: comment._id, productName: product.title }
           );
         }
       } else if (commentData.postId) {
         const post = await Post.findById(commentData.postId).populate('userId');
         if (post && post.userId._id.toString() !== req.user.id) {
           await createAndEmitNotification(
-            io,
-            post.userId._id,
-            'new_comment',
-            'Có bình luận mới',
-            `${req.user.name} đã bình luận trên bài đăng của bạn`,
-            { postId: post._id, commentId: comment._id }
+              io,
+              post.userId._id,
+              'new_comment',
+              'Có bình luận mới',
+              `${req.user.name} đã bình luận trên bài đăng của bạn`,
+              { postId: post._id, commentId: comment._id }
           );
         }
       }
@@ -90,6 +121,37 @@ exports.createComment = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating comment:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Kiểm tra người dùng có được bình luận sản phẩm không (để frontend ẩn/hiện nút)
+// @route   GET /api/products/:productId/comments/can-comment
+// @access  Private
+exports.canComment = async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    const hasBought = await Order.exists({
+      buyerId: req.user.id,
+      productId,
+      status: { $in: PURCHASED_STATUSES }
+    });
+    const existing = await Comment.findOne({ productId, userId: req.user.id }).select('_id');
+
+    res.json({
+      success: true,
+      data: {
+        canComment: !!hasBought && !existing,            // được viết bình luận mới
+        hasBought: !!hasBought,                          // đã mua hay chưa
+        existingCommentId: existing ? existing._id : null // đã có thì chỉ được sửa
+      }
+    });
+  } catch (error) {
+    console.error('Error checking can-comment:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -115,9 +177,9 @@ exports.getComments = async (req, res) => {
     }
 
     const comments = await Comment.find(query)
-      .populate('userId', 'name avatar nickname')
-      .populate('replies.userId', 'name avatar nickname')
-      .sort({ createdAt: -1 });
+        .populate('userId', 'name avatar nickname')
+        .populate('replies.userId', 'name avatar nickname')
+        .sort({ createdAt: -1 });
 
     res.json({
       success: true,
@@ -135,9 +197,18 @@ exports.getComments = async (req, res) => {
 // @desc    Reply to comment
 // @route   POST /api/comments/:commentId/reply
 // @access  Private
+// Bình luận sản phẩm: chỉ người bán, chính người bình luận (hoặc admin) được trả lời
 exports.replyToComment = async (req, res) => {
   try {
     const { content } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nội dung trả lời không được để trống'
+      });
+    }
+
     const comment = await Comment.findById(req.params.commentId);
 
     if (!comment) {
@@ -147,13 +218,25 @@ exports.replyToComment = async (req, res) => {
       });
     }
 
+    if (comment.productId) {
+      const product = await Product.findById(comment.productId).select('userId');
+      const isSeller = product && product.userId.toString() === req.user.id;
+      const isAuthor = comment.userId.toString() === req.user.id;
+      if (!isSeller && !isAuthor && !req.user.isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Chỉ người bán hoặc người đã bình luận mới được trả lời'
+        });
+      }
+    }
+
     comment.replies.push({
       userId: req.user.id,
-      content
+      content: content.trim()
     });
 
     await comment.save();
-    await comment.populate('replies.userId', 'name avatar');
+    await comment.populate('replies.userId', 'name avatar nickname');
 
     res.json({
       success: true,
@@ -271,7 +354,7 @@ exports.deleteComment = async (req, res) => {
       });
     }
 
-    // Check if user is comment owner or product owner
+    // Check if user is comment owner or admin
     if (comment.userId.toString() !== req.user.id && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
@@ -292,9 +375,3 @@ exports.deleteComment = async (req, res) => {
     });
   }
 };
-
-
-
-
-
-
