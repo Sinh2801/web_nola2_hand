@@ -10,6 +10,7 @@ const {
   rejectProduct,
   checkEmailConfig,
   getRevenueStats,
+  getRevenueTable,
   getRevenueDaily,
   dismissReports
 } = require('../controllers/adminController');
@@ -33,5 +34,5 @@ router.put('/products/:id/approve', approveProduct);
 router.put('/products/:id/reject', rejectProduct);
 router.get('/reports', getReports);
 router.put('/products/:id/dismiss-reports', dismissReports);
-
+router.get('/revenue-table', getRevenueTable);
 module.exports = router;
