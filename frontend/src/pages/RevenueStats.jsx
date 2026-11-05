@@ -76,12 +76,10 @@ export default function RevenueStats() {
   const loadStats = async () => {
     try {
       setLoading(true);
-      // 'custom' dùng dữ liệu của 'range/all' rồi lọc theo ngày ở phía giao diện
-      const params = new URLSearchParams({ filterType: filterType === 'custom' ? 'range' : filterType });
+      const params = new URLSearchParams({ filterType });
       if (filterType === 'custom') {
-        params.set('timeRange', 'all');
-        params.set('startDate', startDate);
-        params.set('endDate', endDate);
+        params.set('from', startDate);
+        params.set('to', endDate);
       } else if (filterType === 'range') {
         params.set('timeRange', timeRange);
       } else if (filterType === 'date') {
@@ -352,6 +350,7 @@ export default function RevenueStats() {
                     selectedMonth={selectedMonth}
                     startDate={startDate}
                     endDate={endDate}
+                    breakdown={stats}
                 />
               </div>
           )}

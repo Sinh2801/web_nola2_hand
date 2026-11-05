@@ -275,6 +275,16 @@ export default function ProfileDropdown() {
                 </div>
                 <span className="text-gray-800 dark:text-gray-200">Ưu đãi của tôi</span>
               </Link>
+              <Link
+                to="/vip"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                <div className="w-5 h-5 bg-orange-500 rounded mr-3 flex items-center justify-center">
+                  <span className="text-xs">👑</span>
+                </div>
+                <span className="text-gray-800 dark:text-gray-200">Thẻ VIP đẩy tin</span>
+              </Link>
             </div>
           </div>
 

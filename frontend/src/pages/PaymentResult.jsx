@@ -73,13 +73,20 @@ export default function PaymentResult({ gateway }) {
     }, []);
 
     const v = VIEWS[state];
+    const isVip = info?.kind === 'vip';
+    const VIP_DESC = {
+        success: 'Thẻ VIP đã được kích hoạt. Vào "Thẻ của tôi" để gắn thẻ cho sản phẩm.',
+        pending: 'Giao dịch chưa thành công. Bạn có thể quay lại cửa hàng thẻ để mua lại.',
+        cancelled: 'Bạn đã hủy giao dịch. Bạn có thể quay lại cửa hàng thẻ để mua lại.',
+        expired: 'Giao dịch đã hết hạn. Bạn có thể quay lại cửa hàng thẻ để mua lại.',
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 w-full max-w-md text-center">
                 <div className="text-5xl mb-4">{v.icon}</div>
                 <h1 className={`text-xl font-bold mb-2 ${v.color}`}>{v.title}</h1>
-                {v.desc && <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{v.desc}</p>}
+                {v.desc && <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{isVip ? (VIP_DESC[state] || v.desc) : v.desc}</p>}
 
                 {state === 'success' && info && (
                     <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 mb-4 text-sm text-left space-y-1">
@@ -92,10 +99,10 @@ export default function PaymentResult({ gateway }) {
                 {state !== 'checking' && (
                     <div className="flex flex-col gap-2 mt-2">
                         <Link
-                            to="/orders?type=buying"
+                            to={isVip ? '/vip?tab=cards' : '/orders?type=buying'}
                             className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 rounded-xl"
                         >
-                            Xem đơn mua của tôi
+                            {isVip ? 'Xem thẻ của tôi' : 'Xem đơn mua của tôi'}
                         </Link>
                         <Link to="/" className="text-sm text-gray-500 hover:underline">Về trang chủ</Link>
                     </div>

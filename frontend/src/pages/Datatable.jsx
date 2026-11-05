@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine, LabelList,
+  Tooltip, ResponsiveContainer, ReferenceLine, LabelList, PieChart, Pie, Cell,
 } from "recharts";
 import api from "../utils/api";
 
@@ -271,9 +271,167 @@ function SortHead({ label, k, sort, onSort, align = "left" }) {
   );
 }
 
+/* ====================== Biểu đồ tròn: cơ cấu doanh thu ====================== */
+
+const PIE_COLORS = ["#f97316", "#6366f1", "#14b8a6", "#f43f5e", "#fbbf24", "#8b5cf6", "#94a3b8"];
+const METHOD_NAMES = { bank_transfer: "Chuyển khoản", momo: "Ví MoMo", vnpay: "VNPay" };
+const STATUS_META = {
+  confirmed: { name: "Thành công", color: "#22c55e" },
+  pending: { name: "Chờ duyệt", color: "#f59e0b" },
+  rejected: { name: "Bị từ chối", color: "#ef4444" },
+};
+const MAX_SLICES = 6;
+
+// Giữ tối đa MAX_SLICES lát, phần còn lại gộp thành "Khác"
+function limitSlices(items) {
+  const sorted = items.filter((i) => i.value > 0).sort((a, b) => b.value - a.value);
+  if (sorted.length <= MAX_SLICES) return sorted;
+  const head = sorted.slice(0, MAX_SLICES - 1);
+  const rest = sorted.slice(MAX_SLICES - 1);
+  return [
+    ...head,
+    {
+      name: "Khác",
+      value: rest.reduce((s, i) => s + i.value, 0),
+      count: rest.reduce((s, i) => s + (i.count || 0), 0),
+      color: "#94a3b8",
+    },
+  ];
+}
+
+// Gom dữ liệu từ /admin/revenue-stats thành các biểu đồ tròn
+function buildPies(d) {
+  if (!d) return [];
+  const pies = [];
+
+  if (d.categoryStats?.length) {
+    pies.push({
+      id: "category", label: "Danh mục", unit: "money", center: "Doanh thu",
+      sub: "Doanh thu sàn theo danh mục sản phẩm",
+      items: limitSlices(d.categoryStats.map((c) => ({ name: c._id || "Khác", value: fee(c.revenue), count: c.count }))),
+    });
+  }
+  if (d.methodStats?.length) {
+    pies.push({
+      id: "method", label: "Thanh toán", unit: "money", center: "Doanh thu",
+      sub: "Doanh thu sàn theo phương thức thanh toán",
+      items: limitSlices(d.methodStats.map((m) => ({ name: METHOD_NAMES[m._id] || m._id || "Khác", value: fee(m.revenue), count: m.count }))),
+    });
+  }
+  if (d.topProducts?.length) {
+    pies.push({
+      id: "product", label: "Sản phẩm", unit: "money", center: "Top 10",
+      sub: "Doanh thu sàn của các sản phẩm bán chạy nhất",
+      items: limitSlices(d.topProducts.map((p) => ({ name: p.title || "Sản phẩm", value: fee(p.revenue), count: p.count }))),
+    });
+  }
+  const st = d.statusStats;
+  if (st && Object.keys(st).length) {
+    pies.push({
+      id: "status", label: "Trạng thái", unit: "count", center: "Giao dịch",
+      sub: "Số giao dịch theo trạng thái trong kỳ",
+      items: ["confirmed", "pending", "rejected"]
+          .filter((k) => st[k]?.count > 0)
+          .map((k) => ({ name: STATUS_META[k].name, value: st[k].count, count: st[k].count, color: STATUS_META[k].color })),
+    });
+  }
+  return pies.filter((p) => p.items.length > 0);
+}
+
+function RevenuePie({ data }) {
+  const pies = useMemo(() => buildPies(data), [data]);
+  const [tab, setTab] = useState("category");
+
+  if (!pies.length) return null;
+
+  const cur = pies.find((p) => p.id === tab) || pies[0];
+  const total = cur.items.reduce((s, i) => s + i.value, 0);
+  const isMoney = cur.unit === "money";
+  const fmt = (v) => (isMoney ? formatVND(v) : `${Number(v).toLocaleString("vi-VN")} giao dịch`);
+  const pctOf = (v) => (total > 0 ? ((v / total) * 100).toFixed(1).replace(".", ",") : "0");
+  const colorOf = (it, i) => it.color || PIE_COLORS[i % PIE_COLORS.length];
+
+  return (
+      <section className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+          <div>
+            <h3 className="text-lg font-extrabold text-gray-900 dark:text-white">Cơ cấu doanh thu</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{cur.sub}</p>
+          </div>
+          {pies.length > 1 && (
+              <Segmented
+                  size="sm"
+                  label="Loại biểu đồ tròn"
+                  value={cur.id}
+                  onChange={setTab}
+                  options={pies.map((p) => ({ value: p.id, label: p.label }))}
+              />
+          )}
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 items-center">
+          <div className="relative" style={{ height: 260 }}>
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie
+                    data={cur.items}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius="62%"
+                    outerRadius="92%"
+                    paddingAngle={2}
+                    stroke="none"
+                >
+                  {cur.items.map((it, i) => (
+                      <Cell key={it.name + i} fill={colorOf(it, i)} />
+                  ))}
+                </Pie>
+                <Tooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const p = payload[0];
+                      return (
+                          <div className="rounded-xl border border-gray-100 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3 text-sm shadow-xl">
+                            <p className="font-bold text-gray-900 dark:text-white max-w-[220px]">{p.name}</p>
+                            <p className="mt-1 font-semibold text-orange-600 dark:text-orange-400">{fmt(p.value)}</p>
+                            <p className="text-gray-500 dark:text-gray-400">{pctOf(p.value)}% tổng</p>
+                          </div>
+                      );
+                    }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{cur.center}</span>
+              <span className="text-2xl font-black text-gray-900 dark:text-white">
+              {isMoney ? `${formatShort(total)} ₫` : total.toLocaleString("vi-VN")}
+            </span>
+            </div>
+          </div>
+
+          <ul className="space-y-3">
+            {cur.items.map((it, i) => (
+                <li key={it.name + i} className="flex items-center gap-3">
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: colorOf(it, i) }} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{it.name}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">{it.count} {cur.unit === "money" ? "đơn" : "giao dịch"}</p>
+                  </div>
+                  <div className="text-right whitespace-nowrap">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{fmt(it.value)}</p>
+                    <p className="text-xs font-semibold text-orange-600 dark:text-orange-400">{pctOf(it.value)}%</p>
+                  </div>
+                </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+  );
+}
+
 /* ====================== Component chính ====================== */
 
-export default function LoadRevanue({ filterType, timeRange, selectedDate, selectedMonth, startDate, endDate }) {
+export default function LoadRevanue({ filterType, timeRange, selectedDate, selectedMonth, startDate, endDate, breakdown }) {
   const [result, setResult] = useState({ mode: null, rows: [] });
   const [loading, setLoading] = useState(true);
   const [groupBy, setGroupBy] = useState("day");      // "day" | "week" | "month"
@@ -597,6 +755,9 @@ export default function LoadRevanue({ filterType, timeRange, selectedDate, selec
             </ResponsiveContainer>
           </div>
         </section>
+
+        {/* ===== Biểu đồ tròn: cơ cấu doanh thu ===== */}
+        <RevenuePie data={breakdown} />
 
         {/* ===== Bảng chi tiết ===== */}
         <section className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">

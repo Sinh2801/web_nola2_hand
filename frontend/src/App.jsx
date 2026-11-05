@@ -38,6 +38,8 @@ import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 import ShipperDashboard from './pages/ShipperDashboard'
 import PaymentResult from './pages/PaymentResult.jsx';
+import VipStore from './pages/VipStore'
+import VipManagement from './pages/VipManagement'
 
 function App() {
   console.log(' App component rendered')
@@ -84,6 +86,7 @@ function App() {
           <Route path="/my-promotions" element={<MyPromotions />} />
           <Route path="/notifications/settings" element={<NotificationSettings />} />
           <Route path="/shipper" element={<ShipperDashboard />} />
+          <Route path="/vip" element={<VipStore />} />
         </Route>
 
         {/* Admin Routes */}
@@ -92,6 +95,7 @@ function App() {
           <Route path="/admin/payments" element={<PaymentManagement />} />
           <Route path="/admin/bankqr" element={<BankQRManagement />} />
           <Route path="/admin/revenue" element={<RevenueStats />} />
+          <Route path="/admin/vip" element={<VipManagement />} />
         </Route>
       </Routes>
     </Layout>

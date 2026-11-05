@@ -1,17 +1,19 @@
 import React, { useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { logout } from '../store/slices/authSlice'
 import NotificationBadge from './NotificationBadge'
 import ProfileDropdown from './ProfileDropdown'
 import ThemeToggle from './ThemeToggle'
 import Chatbot from './Chatbot'
+import VipMarquee from './VipMarquee'
 import api from '../utils/api'
 
 export default function Layout({ children }) {
   const { user, isAuthenticated, token } = useSelector(state => state.auth)
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const hasVerifiedRef = useRef(false)
 
   console.log('Layout component rendered', { isAuthenticated, hasUser: !!user })
@@ -48,6 +50,10 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+      {/* Dải chữ chạy quảng bá thẻ VIP (ẩn với shipper và ở trang mua thẻ / kết quả thanh toán) */}
+      {!(user?.isShipper && user?.shipperStatus === 'approved') &&
+        !location.pathname.startsWith('/vip') &&
+        !location.pathname.startsWith('/payment') && <VipMarquee />}
       {/* Navbar */}
       <nav className="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
