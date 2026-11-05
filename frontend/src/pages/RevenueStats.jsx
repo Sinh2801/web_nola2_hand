@@ -163,41 +163,6 @@ export default function RevenueStats() {
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              aria-label="Loại bộ lọc thời gian"
-              className="px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none dark:bg-gray-900 dark:text-white text-sm font-bold shadow-sm"
-            >
-              <option value="date">Ngày cụ thể</option>
-              <option value="specificMonth">Tháng cụ thể</option>
-              <option value="range">Khoảng thời gian</option>
-            </select>
-            {filterType === 'range' ? (
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value)}
-                aria-label="Khoảng thời gian"
-                className="px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none dark:bg-gray-900 dark:text-white text-sm font-bold shadow-sm"
-              >
-                <option value="year">12 tháng </option>
-                <option value="all">Tất cả</option>
-              </select>
-            ) : (
-              <input
-                type={filterType === 'date' ? 'date' : 'month'}
-                value={filterType === 'date' ? selectedDate : selectedMonth}
-                onChange={(e) => {
-                  if (filterType === 'date') {
-                    setSelectedDate(e.target.value);
-                  } else {
-                    setSelectedMonth(e.target.value);
-                  }
-                }}
-                aria-label={filterType === 'date' ? 'Chọn ngày' : 'Chọn tháng'}
-                className="px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none dark:bg-gray-900 dark:text-white text-sm font-bold shadow-sm"
-              />
-            )}
           </div>
         </div>
 
@@ -212,17 +177,6 @@ export default function RevenueStats() {
           </div>
         )}
       </div>
-
-      {stats && (
-        <div className="space-y-8">
-          <LoadRevanue
-            filterType={filterType}
-            timeRange={timeRange}
-            selectedDate={selectedDate}
-            selectedMonth={selectedMonth}
-          />
-        </div>
-      )}
     </div>
   );
 }

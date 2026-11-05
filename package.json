@@ -4,6 +4,7 @@
     "datatables.net-autofill-dt": "^3.1.3",
     "datatables.net-dt": "^3.1.5",
     "datatables.net-react": "^2.0.0",
-    "node-cron": "^4.2.1"
+    "node-cron": "^4.2.1",
+    "recharts": "^3.10.1"
   }
 }

@@ -7,7 +7,9 @@ build/
 uploads/
 .vscode/
 .idea/
-
+package-lock.json
+package.json
+backend/package-lock.json
 # Test coverage
 coverage/
 *.lcov
