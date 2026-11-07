@@ -3,7 +3,9 @@ import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import api from '../utils/api';
 import LoadRevanue from "./Datatable.jsx";
-
+import RevenuePie from "./RevenuePie.jsx";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+ChartJS.register(ArcElement, Tooltip, Legend);
 export default function RevenueStats() {
   const { user } = useSelector(state => state.auth);
   const [stats, setStats] = useState(null);
@@ -172,6 +174,7 @@ export default function RevenueStats() {
                     selectedDate={selectedDate}
                     selectedMonth={selectedMonth}
                 />
+              {filterType === "month" && selectedMonth && <RevenuePie filterType={filterType} month={selectedMonth} />}
               </div>
           )}
         </div>
