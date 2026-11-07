@@ -7,6 +7,7 @@ const generateTransactionCode = require('../utils/generateTransactionCode');
 const { uploadToCloudinary } = require('../utils/uploadImage');
 const { createAndEmitNotification } = require('../utils/notifications');
 const vnpayUtil = require('../utils/vnpay');
+const vipController = require('./vipController');
 const createPaymentRecord = require('../utils/createPaymentRecord');
 
 // @desc    Create payment (when buyer clicks "Thanh toán")
@@ -906,7 +907,11 @@ exports.vnpayIpn = async (req, res) => {
     if (!verify.isVerified) return res.json(IPN.IpnFailChecksum);
 
     const payment = await Payment.findOne({ vnpayTxnRef: verify.vnp_TxnRef });
-    if (!payment) return res.json(IPN.IpnOrderNotFound);
+    if (!payment) {
+      // Không phải đơn hàng thường: có thể là đơn mua thẻ VIP
+      const vipResponse = await vipController.handleVnpayIpn(verify, req.app.get('io'));
+      return res.json(vipResponse || IPN.IpnOrderNotFound);
+    }
     if (verify.vnp_Amount !== payment.amount) return res.json(IPN.IpnInvalidAmount);
     if (payment.status === 'confirmed') return res.json(IPN.InpOrderAlreadyConfirmed);
 
@@ -933,6 +938,10 @@ exports.vnpayReturn = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Dữ liệu trả về không hợp lệ' });
 
     const payment = await Payment.findOne({ vnpayTxnRef: verify.vnp_TxnRef });
+    if (!payment) {
+      const vipStatus = await vipController.getVnpayStatusForUser(verify, req.user.id, req.app.get('io'));
+      if (vipStatus) return res.json({ success: true, data: vipStatus });
+    }
     if (!payment || payment.buyerId.toString() !== req.user.id)
       return res.status(404).json({ success: false, message: 'Không tìm thấy giao dịch' });
 

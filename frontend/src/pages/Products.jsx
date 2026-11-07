@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { fetchProducts } from '../store/slices/productSlice'
 import SearchAutocomplete from '../components/SearchAutocomplete'
 import api from '../utils/api'
+import VipBadge, { vipCardClass } from '../components/VipBadge'
 
 export default function Products() {
   const dispatch = useDispatch()
@@ -520,7 +521,8 @@ export default function Products() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {displayProducts.map((product) => (
                 <Link key={product._id} to={`/products/${product._id}`}>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full relative">
+                  <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full relative ${vipCardClass(product)}`}>
+                    <VipBadge product={product} />
                     {/* Badge AI Match (chỉ khi Semantic Search) */}
                     {isSemanticSearch && product.aiScore != null && semanticAiEnabled && (
                       <div className="absolute top-2 left-2 z-10">
