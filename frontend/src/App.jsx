@@ -6,7 +6,6 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import VerifyOTP from './pages/VerifyOTP'
 import ForgotPassword from './pages/ForgotPassword'
-import VerifyOTPResetPassword from './pages/VerifyOTPResetPassword'
 import Products from './pages/Products'
 import ProductDetail from './pages/ProductDetail'
 import CreateProduct from './pages/CreateProduct'
@@ -52,7 +51,6 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/verify-otp" element={<VerifyOTP />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/verify-otp-reset-password" element={<VerifyOTPResetPassword />} />
         <Route path="/feed" element={<Feed />} />
         <Route path="/posts/:id" element={<PostDetailPage />} />
         <Route path="/explore" element={<Explore />} />
@@ -103,7 +101,6 @@ function App() {
 }
 
 export default App
-
 
 
 
