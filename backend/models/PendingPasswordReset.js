@@ -14,7 +14,7 @@ const pendingPasswordResetSchema = new mongoose.Schema({
   },
   newPassword: {
     type: String,
-    required: true,
+    required: false,
     minlength: 6
   },
   verificationCode: {
@@ -40,4 +40,3 @@ pendingPasswordResetSchema.index({ userId: 1 });
 pendingPasswordResetSchema.index({ verificationCodeExpire: 1 });
 
 module.exports = mongoose.model('PendingPasswordReset', pendingPasswordResetSchema);
-

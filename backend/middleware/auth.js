@@ -57,6 +57,22 @@ exports.protect = async (req, res, next) => {
   }
 };
 
+// Populate the user when a valid token is present, while keeping public catalog
+// recommendations available to visitors who are not signed in.
+exports.optionalProtect = async (req, res, next) => {
+  try {
+    const header = req.headers.authorization;
+    if (header && header.startsWith('Bearer ')) {
+      const decoded = jwt.verify(header.split(' ')[1], process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id);
+      if (user && user.isActive) req.user = user;
+    }
+  } catch (error) {
+    console.warn('Optional recommendation auth skipped:', error.message);
+  }
+  next();
+};
+
 // Grant access to admin
 exports.authorize = (...roles) => {
   return (req, res, next) => {

@@ -108,9 +108,9 @@ export const resendVerificationCode = createAsyncThunk(
 // Forgot password
 export const forgotPassword = createAsyncThunk(
     'auth/forgotPassword',
-    async ({ email, newPassword }, { rejectWithValue }) => {
+    async ({ email }, { rejectWithValue }) => {
       try {
-        const response = await api.post('/auth/forgotpassword', { email, newPassword })
+        const response = await api.post('/auth/forgotpassword', { email })
         return response.data
       } catch (error) {
         return rejectWithValue(error.response?.data?.message || 'Gửi mã xác minh thất bại')
@@ -121,9 +121,9 @@ export const forgotPassword = createAsyncThunk(
 // Verify OTP and reset password
 export const verifyOTPAndResetPassword = createAsyncThunk(
     'auth/verifyOTPAndResetPassword',
-    async ({ email, code }, { rejectWithValue }) => {
+    async ({ email, code, newPassword }, { rejectWithValue }) => {
       try {
-        const response = await api.post('/auth/verify-otp-reset-password', { email, code })
+        const response = await api.post('/auth/verify-otp-reset-password', { email, code, newPassword })
         return response.data
       } catch (error) {
         return rejectWithValue(error.response?.data?.message || 'Xác minh thất bại')
@@ -134,9 +134,9 @@ export const verifyOTPAndResetPassword = createAsyncThunk(
 // Resend verification code for password reset (reuse forgotPassword)
 export const resendVerificationCodeResetPassword = createAsyncThunk(
     'auth/resendVerificationCodeResetPassword',
-    async ({ email, newPassword }, { rejectWithValue }) => {
+    async ({ email }, { rejectWithValue }) => {
       try {
-        const response = await api.post('/auth/forgotpassword', { email, newPassword })
+        const response = await api.post('/auth/forgotpassword', { email })
         return response.data
       } catch (error) {
         return rejectWithValue(error.response?.data?.message || 'Không thể gửi lại mã xác minh')
