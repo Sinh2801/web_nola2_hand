@@ -657,12 +657,12 @@ exports.getMe = async (req, res) => {
 // @access  Public
 exports.forgotPassword = async (req, res) => {
   try {
-    const { email, newPassword } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
 
-    if (!email || !newPassword) {
+    if (!email) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng nhập email và mật khẩu mới'
+        message: 'Vui lòng nhập email'
       });
     }
 
@@ -693,7 +693,6 @@ exports.forgotPassword = async (req, res) => {
     const pendingReset = await PendingPasswordReset.create({
       userId: user._id,
       email: user.email,
-      newPassword, // Will be hashed when resetting
       verificationCode,
       verificationCodeExpire: new Date(verificationCodeExpire),
       type: 'forgot'
@@ -761,10 +760,13 @@ exports.forgotPassword = async (req, res) => {
         }
       });
     } catch (error) {
+      console.error('Password reset OTP email error:', error);
       await PendingPasswordReset.deleteOne({ _id: pendingReset._id });
       return res.status(500).json({
         success: false,
-        message: 'Không thể gửi email. Vui lòng thử lại sau.'
+        message: process.env.NODE_ENV === 'development'
+          ? `Không thể gửi email: ${error.message}`
+          : 'Không thể gửi email. Vui lòng thử lại sau.'
       });
     }
   } catch (error) {
@@ -780,12 +782,13 @@ exports.forgotPassword = async (req, res) => {
 // @access  Public
 exports.verifyOTPAndResetPassword = async (req, res) => {
   try {
-    const { email, code } = req.body;
+    const { code, newPassword } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
 
-    if (!email || !code) {
+    if (!email || !code || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng nhập email và mã xác minh'
+        message: 'Vui lòng nhập email, mã xác minh và mật khẩu mới'
       });
     }
 
@@ -831,7 +834,7 @@ exports.verifyOTPAndResetPassword = async (req, res) => {
     }
 
     // OTP is correct - Reset password
-    user.password = pendingReset.newPassword; // Will be hashed by pre-save hook
+    user.password = newPassword; // Will be hashed by pre-save hook
     await user.save();
 
     // Delete pending reset
