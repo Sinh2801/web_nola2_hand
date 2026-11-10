@@ -78,7 +78,7 @@ export default function ProductRecommendations({ type, productId, limit = 8 }) {
 
   const getTitle = () => {
     const titles = {
-      'ai-similar': 'Gợi ý bằng AI',
+      'ai-similar': 'Có thể bạn sẽ thích',
       similar: 'Sản phẩm tương tự',
       'also-viewed': 'Người dùng cũng xem',
       recommended: 'Sản phẩm bạn có thể thích',
@@ -181,4 +181,3 @@ export default function ProductRecommendations({ type, productId, limit = 8 }) {
     </div>
   );
 }
-

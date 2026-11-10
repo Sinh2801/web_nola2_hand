@@ -4,9 +4,10 @@ const Review = require('../models/Review');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const mongoose = require('mongoose');
-const { generateContent } = require('../utils/gemini');
+const RecommendationModel = require('../models/RecommendationModel');
+const { scoreRecommendations, trainRecommendationModel } = require('../utils/recommendationModelService');
 
-// @desc    Get AI similar products (Gemini keywords → search)
+// @desc    Get model-scored similar products
 // @route   GET /api/products/:id/ai-similar
 // @access  Public
 exports.getAISimilarProducts = async (req, res) => {
@@ -15,42 +16,11 @@ exports.getAISimilarProducts = async (req, res) => {
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
-    const text = [product.title, product.description].filter(Boolean).join(' ');
-    if (!text.trim()) {
-      return res.json({ success: true, data: [] });
-    }
-    const prompt = `Sản phẩm: "${product.title}". Mô tả: ${(product.description || '').slice(0, 500)}
-Trả về ĐÚNG 1 JSON: {"keywords": ["từ1", "từ2", ...]} với 5-10 từ khóa ngắn (tiếng Việt hoặc tiếng Anh) mô tả sản phẩm để tìm sản phẩm tương tự. Chỉ trả JSON.`;
-    const response = await generateContent(prompt);
-    if (!response) {
-      return res.json({ success: true, data: [] });
-    }
-    let keywords = [];
-    try {
-      const jsonStr = response.replace(/```json?\s*|\s*```/g, '').trim();
-      const parsed = JSON.parse(jsonStr);
-      keywords = Array.isArray(parsed.keywords) ? parsed.keywords.slice(0, 10) : [];
-    } catch (e) {
-      return res.json({ success: true, data: [] });
-    }
-    if (keywords.length === 0) {
-      return res.json({ success: true, data: [] });
-    }
-    const orConditions = keywords.flatMap(kw => [
-      { title: { $regex: kw, $options: 'i' } },
-      { description: { $regex: kw, $options: 'i' } },
-      { tags: { $in: [new RegExp(kw, 'i')] } }
-    ]);
-    const similarProducts = await Product.find({
-      _id: { $ne: product._id },
-      $or: orConditions,
-      isApproved: true,
-      status: 'Available'
-    })
-      .sort({ viewCount: -1, averageRating: -1, createdAt: -1 })
-      .limit(8)
-      .populate('userId', 'name avatar')
-      .select('title images price category location viewCount averageRating');
+    const similarProducts = await scoreRecommendations({
+      userId: req.user?.id,
+      sourceProductId: product._id,
+      limit: 8
+    });
     return res.json({ success: true, data: similarProducts });
   } catch (error) {
     console.error('Error getAISimilarProducts:', error);
@@ -72,23 +42,11 @@ exports.getSimilarProducts = async (req, res) => {
       });
     }
 
-    // Find products in same category with similar price (±30%)
-    const priceRange = {
-      $gte: product.price * 0.7,
-      $lte: product.price * 1.3
-    };
-
-    const similarProducts = await Product.find({
-      _id: { $ne: product._id },
-      category: product.category,
-      price: priceRange,
-      isApproved: true,
-      status: 'Available'
-    })
-      .sort({ viewCount: -1, createdAt: -1 })
-      .limit(8)
-      .populate('userId', 'name avatar')
-      .select('title images price category location viewCount averageRating');
+    const similarProducts = await scoreRecommendations({
+      userId: req.user?.id,
+      sourceProductId: product._id,
+      limit: 8
+    });
 
     res.json({
       success: true,
@@ -171,39 +129,12 @@ exports.getAlsoViewed = async (req, res) => {
   }
 };
 
-// @desc    Get recommended products based on favorites
+// @desc    Get recommended products based on purchases, reviews and bookmarks
 // @route   GET /api/products/recommended
 // @access  Private
 exports.getRecommendedProducts = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).populate('favorites');
-
-    if (!user || !user.favorites || user.favorites.length === 0) {
-      // If no favorites, return empty array
-      return res.json({
-        success: true,
-        data: []
-      });
-    }
-
-    // Get categories and tags from favorites
-    const favoriteCategories = [...new Set(user.favorites.map(f => f.category))];
-    const favoriteTags = [...new Set(user.favorites.flatMap(f => f.tags || []))];
-
-    // Find products in similar categories or with similar tags
-    const recommended = await Product.find({
-      _id: { $nin: user.favorites.map(f => f._id) },
-      $or: [
-        { category: { $in: favoriteCategories } },
-        { tags: { $in: favoriteTags } }
-      ],
-      isApproved: true,
-      status: 'Available'
-    })
-      .sort({ viewCount: -1, averageRating: -1, createdAt: -1 })
-      .limit(12)
-      .populate('userId', 'name avatar')
-      .select('title images price category location viewCount averageRating tags');
+    const recommended = await scoreRecommendations({ userId: req.user.id, limit: 12 });
 
     res.json({
       success: true,
@@ -215,6 +146,35 @@ exports.getRecommendedProducts = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+exports.getRecommendationModel = async (req, res) => {
+  try {
+    const model = await RecommendationModel.findOne({ key: 'default' })
+      .populate('productPairs.productId', 'title')
+      .populate('productPairs.pairedProductId', 'title')
+      .lean();
+    return res.json({ success: true, data: model || {
+      trainedAt: null,
+      metrics: { hitRateAt4: 0, precisionAt4: 0, popularBaselineAt4: 0 },
+      dataSummary: { purchases: 0, customers: 0, reviews: 0 },
+      productPairs: [],
+      trainingHistory: []
+    } });
+  } catch (error) {
+    console.error('Error getting recommendation model:', error);
+    return res.status(500).json({ success: false, message: 'Không thể tải thông tin mô hình' });
+  }
+};
+
+exports.trainRecommendationModel = async (req, res) => {
+  try {
+    const result = await trainRecommendationModel('manual');
+    return res.json({ success: true, message: 'Đã huấn luyện lại mô hình', data: result.model });
+  } catch (error) {
+    console.error('Error training recommendation model:', error);
+    return res.status(500).json({ success: false, message: 'Không thể huấn luyện mô hình' });
   }
 };
 
@@ -331,4 +291,3 @@ exports.getNearbyProducts = async (req, res) => {
     });
   }
 };
-
