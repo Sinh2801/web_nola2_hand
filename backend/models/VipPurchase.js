@@ -8,7 +8,7 @@ const vipPurchaseSchema = new mongoose.Schema({
     // Lưu bản sao để đổi giá/sửa gói về sau không làm sai lịch sử
     packageSnapshot: {
         name: String,
-        type: { type: String, enum: ['pin', 'highlight', 'combo'] },
+        type: { type: String, enum: ['pin', 'highlight', 'combo', 'hot', 'ultimate', 'seller_vip'] },
         durationDays: Number,
         quantity: Number,
         validDays: Number,
@@ -35,7 +35,9 @@ const vipPurchaseSchema = new mongoose.Schema({
         productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
         appliedAt: { type: Date, default: Date.now },
         pinnedUntil: Date,
-        highlightUntil: Date
+        highlightUntil: Date,
+        hotUntil: Date,
+        sellerUntil: Date
     }],
 
     note: { type: String, trim: true, default: '' }   // ghi chú khi admin tặng/kích hoạt thủ công

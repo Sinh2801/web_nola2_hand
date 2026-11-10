@@ -112,7 +112,8 @@ const productSchema = new mongoose.Schema({
   // ── Thẻ VIP ──
   vipPinnedUntil: { type: Date, default: null },     // còn hạn: sản phẩm được ghim lên đầu danh sách
   vipPinnedAt: { type: Date, default: null },        // lần gắn thẻ gần nhất, dùng để xếp thứ tự giữa các tin ghim
-  vipHighlightUntil: { type: Date, default: null }   // còn hạn: hiện viền + huy hiệu "Nổi bật"
+  vipHighlightUntil: { type: Date, default: null },  // còn hạn: hiện viền + huy hiệu "Nổi bật"
+  vipHotUntil: { type: Date, default: null }         // còn hạn: hiện nhãn 🔥 HOT
 }, {
   timestamps: true
 });

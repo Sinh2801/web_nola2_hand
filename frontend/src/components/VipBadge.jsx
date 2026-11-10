@@ -4,6 +4,8 @@ const active = (d) => !!d && new Date(d) > new Date()
 
 export const isPinned = (product) => active(product?.vipPinnedUntil)
 export const isHighlighted = (product) => active(product?.vipHighlightUntil)
+export const isHot = (product) => active(product?.vipHotUntil)
+export const isSellerVip = (product) => active(product?.userId?.vipSellerUntil)
 
 // Viền nổi bật cho thẻ sản phẩm (nối vào className của khung card)
 export const vipCardClass = (product) =>
@@ -13,13 +15,25 @@ export const vipCardClass = (product) =>
 export default function VipBadge({ product, className = 'absolute top-2 right-2 z-10' }) {
     const pinned = isPinned(product)
     const highlighted = isHighlighted(product)
-    if (!pinned && !highlighted) return null
+    const hot = isHot(product)
+    const seller = isSellerVip(product)
+    if (!pinned && !highlighted && !hot && !seller) return null
 
     return (
         <div className={`${className} flex flex-col gap-1 items-end`}>
             {pinned && (
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full shadow bg-gradient-to-r from-orange-500 to-amber-400 text-white">
           👑 VIP
+        </span>
+            )}
+            {seller && (
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full shadow bg-gray-900 text-amber-300 border border-amber-400">
+          🏪 Shop VIP
+        </span>
+            )}
+            {hot && (
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full shadow bg-red-600 text-white">
+          🔥 HOT
         </span>
             )}
             {highlighted && (

@@ -9,7 +9,10 @@ const formatVND = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(Number
 const TYPE_TEXT = {
     pin: { icon: '🚀', text: 'đưa tin lên ĐẦU TRANG' },
     highlight: { icon: '⭐', text: 'viền cam + huy hiệu Nổi bật' },
-    combo: { icon: '👑', text: 'vừa lên đầu trang vừa Nổi bật' }
+    combo: { icon: '👑', text: 'vừa lên đầu trang vừa Nổi bật' },
+    hot: { icon: '🔥', text: 'nhãn HOT đỏ thu hút' },
+    ultimate: { icon: '💎', text: 'đủ bộ đẩy top + nổi bật + HOT' },
+    seller_vip: { icon: '🏪', text: 'huy hiệu Shop VIP trên mọi tin của bạn' }
 }
 
 // Các câu cố định, luôn hiện kể cả khi chưa tải được danh sách gói
