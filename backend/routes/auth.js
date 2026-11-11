@@ -19,7 +19,8 @@ const {
   validateRegister,
   validateLogin,
   validateForgotPassword,
-  validateVerifyOTP
+  validateVerifyOTP,
+  validateResetPasswordOTP
 } = require('../middleware/validators/authValidator');
 
 const router = express.Router();
@@ -32,7 +33,7 @@ router.get('/verify/:token', verifyEmail);
 router.post('/login', authLimiter, validateLogin, login);
 router.post('/google', authLimiter, googleLogin); // [GOOGLE] thêm mới
 router.post('/forgotpassword', authLimiter, validateForgotPassword, forgotPassword);
-router.post('/verify-otp-reset-password', authLimiter, validateVerifyOTP, verifyOTPAndResetPassword);
+router.post('/verify-otp-reset-password', authLimiter, validateResetPasswordOTP, verifyOTPAndResetPassword);
 
 
 router.get('/me', protect, getMe);

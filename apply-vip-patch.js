@@ -25,8 +25,9 @@ function get(file) {
 }
 
 const log = [];
-function rep(file, oldStr, newStr, count = 1) {
+function rep(file, oldStr, newStr, count = 1, skipIf = null) {
     const f = get(file);
+    if (skipIf && f.text.includes(skipIf)) { log.push(`  bỏ qua (đã có): ${file}`); return; }
     if (f.text.includes(newStr)) { log.push(`  bỏ qua (đã có): ${file}`); return; }
     const n = f.text.split(oldStr).length - 1;
     if (n !== count) throw new Error(`${file}: cần ${count} vị trí khớp nhưng thấy ${n}:\n${oldStr.slice(0, 120)}`);
@@ -40,7 +41,8 @@ const OPS = [
         "file": "backend/models/Product.js",
         "old": "  moderationReason: {\n    type: String,\n    default: null\n  }\n}, {",
         "new": "  moderationReason: {\n    type: String,\n    default: null\n  },\n  // ── Thẻ VIP ──\n  vipPinnedUntil: { type: Date, default: null },     // còn hạn: sản phẩm được ghim lên đầu danh sách\n  vipPinnedAt: { type: Date, default: null },        // lần gắn thẻ gần nhất, dùng để xếp thứ tự giữa các tin ghim\n  vipHighlightUntil: { type: Date, default: null }   // còn hạn: hiện viền + huy hiệu \"Nổi bật\"\n}, {",
-        "count": 1
+        "count": 1,
+        "skipIf": "vipPinnedUntil: { type: Date"
     },
     {
         "file": "backend/models/Product.js",
@@ -64,7 +66,8 @@ const OPS = [
         "file": "backend/controllers/productController.js",
         "old": "    const products = await Product.find(query)\n      .sort(sortOption)\n      .skip(skip)\n      .limit(Number(limit))\n      .populate('userId', 'name avatar')\n      .select('-__v');\n\n    const total = await Product.countDocuments(query);",
         "new": "    // Sản phẩm đang có thẻ VIP \"ghim\" luôn nằm đầu khi xem mặc định (mới nhất).\n    // Các kiểu sắp xếp khác (giá, đánh giá, phổ biến...) giữ nguyên để kết quả công bằng.\n    const pinFirst = !sort || sort === 'newest' || sort === '-createdAt' || (sort === 'relevance' && !search);\n    const lim = Number(limit);\n    let products;\n\n    if (pinFirst) {\n      const now = new Date();\n      const pinnedQuery = { ...query, vipPinnedUntil: { $gt: now } };\n      const pinnedCount = await Product.countDocuments(pinnedQuery);\n      products = [];\n\n      if (skip < pinnedCount) {\n        products = await Product.find(pinnedQuery)\n          .sort({ vipPinnedAt: -1 })\n          .skip(skip)\n          .limit(lim)\n          .populate('userId', 'name avatar')\n          .select('-__v');\n      }\n\n      const need = lim - products.length;\n      if (need > 0) {\n        const regular = await Product.find({ ...query, $nor: [{ vipPinnedUntil: { $gt: now } }] })\n          .sort(sortOption)\n          .skip(Math.max(0, skip - pinnedCount))\n          .limit(need)\n          .populate('userId', 'name avatar')\n          .select('-__v');\n        products = products.concat(regular);\n      }\n    } else {\n      products = await Product.find(query)\n        .sort(sortOption)\n        .skip(skip)\n        .limit(lim)\n        .populate('userId', 'name avatar')\n        .select('-__v');\n    }\n\n    const total = await Product.countDocuments(query);",
-        "count": 1
+        "count": 1,
+        "skipIf": "const pinFirst"
     },
     {
         "file": "backend/controllers/paymentController.js",
@@ -167,11 +170,29 @@ const OPS = [
         "old": "  const navigate = useNavigate()\n",
         "new": "  const navigate = useNavigate()\n  const location = useLocation()\n",
         "count": 1
+    },
+    {
+        "file": "backend/models/Product.js",
+        "old": "  vipHighlightUntil: { type: Date, default: null }   // còn hạn: hiện viền + huy hiệu \"Nổi bật\"\n",
+        "new": "  vipHighlightUntil: { type: Date, default: null },  // còn hạn: hiện viền + huy hiệu \"Nổi bật\"\n  vipHotUntil: { type: Date, default: null }         // còn hạn: hiện nhãn 🔥 HOT\n",
+        "count": 1
+    },
+    {
+        "file": "backend/controllers/productController.js",
+        "old": ".populate('userId', 'name avatar')\n",
+        "new": ".populate('userId', 'name avatar vipSellerUntil')\n",
+        "count": 3
+    },
+    {
+        "file": "backend/models/User.js",
+        "old": "  }\n}, {\n  timestamps: true\n});",
+        "new": "  },\n  // Thẻ VIP: còn hạn thì hiện huy hiệu \"Shop VIP\" trên mọi tin của người bán\n  vipSellerUntil: { type: Date, default: null }\n}, {\n  timestamps: true\n});",
+        "count": 1
     }
 ];;
 
 try {
-    for (const o of OPS) rep(o.file, o.old, o.new, o.count);
+    for (const o of OPS) rep(o.file, o.old, o.new, o.count, o.skipIf);
 
     // Nút "Quản lý thẻ VIP" ở AdminDashboard (dùng lại class của nút Thống kê doanh thu)
     {

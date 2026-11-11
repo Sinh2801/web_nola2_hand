@@ -6,6 +6,7 @@ import api from '../utils/api'
 import AlertModal from '../components/AlertModal'
 import Toast from '../components/Toast'
 import { useConfirm } from '../components/ConfirmModal'
+import AdminRecommendationModel from '../components/AdminRecommendationModel'
 
 function AdminDashboard() {
   const dispatch = useDispatch()
@@ -733,7 +734,8 @@ function AdminDashboard() {
           { id: 'coupons', label: 'Mã giảm giá', icon: '🎟️' },
           { id: 'returns', label: 'Yêu cầu hoàn hàng', icon: '🔄', badge: returnRequests.length },
           { id: 'shippers', label: 'Quản lý Shipper', icon: '🛵', badge: shippers.filter(s => s.shipperStatus === 'pending').length },
-          { id: 'seller_qrs', label: 'Xác minh QR', icon: '🏦', badge: sellerQRs.filter(q => !q.isVerified).length }
+          { id: 'seller_qrs', label: 'Xác minh QR', icon: '🏦', badge: sellerQRs.filter(q => !q.isVerified).length },
+          { id: 'recommendation_model', label: 'Mô hình gợi ý', icon: '🤖' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -797,7 +799,6 @@ function AdminDashboard() {
                   </div>
                 </div>
               )}
-
               {/* Người dùng card */}
               <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-xl border border-gray-150 dark:border-gray-700/50 flex flex-col justify-between">
                 <div className="flex justify-between items-start">
@@ -869,6 +870,10 @@ function AdminDashboard() {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'recommendation_model' && (
+          <AdminRecommendationModel onMessage={showToastMsg} />
         )}
 
         {activeTab === 'pending' && (

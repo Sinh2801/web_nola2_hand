@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import api from '../utils/api.js'
+import api from '../utils/api'
 
 const formatVND = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(Number(n || 0))) + ' ₫'
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—')
@@ -9,8 +9,20 @@ const formatDateTime = (d) => (d ? new Date(d).toLocaleString('vi-VN') : '—')
 const TYPE_INFO = {
     pin: { label: 'Đẩy top', icon: '🚀', desc: 'Sản phẩm lên đầu danh sách' },
     highlight: { label: 'Nổi bật', icon: '⭐', desc: 'Viền cam + huy hiệu' },
-    combo: { label: 'VIP Combo', icon: '👑', desc: 'Đẩy top + nổi bật' }
+    hot: { label: 'Nhãn HOT', icon: '🔥', desc: 'Nhãn đỏ thu hút' },
+    combo: { label: 'VIP Combo', icon: '👑', desc: 'Đẩy top + nổi bật' },
+    ultimate: { label: 'Siêu VIP', icon: '💎', desc: 'Đẩy top + nổi bật + HOT' },
+    seller_vip: { label: 'Shop VIP', icon: '🏪', desc: 'Huy hiệu trên mọi tin của shop' }
 }
+
+const FILTERS = [
+    ['all', 'Tất cả', null],
+    ['pin', '🚀 Đẩy top', ['pin']],
+    ['highlight', '⭐ Nổi bật', ['highlight']],
+    ['hot', '🔥 HOT', ['hot']],
+    ['combo', '👑 Combo', ['combo', 'ultimate']],
+    ['seller_vip', '🏪 Shop VIP', ['seller_vip']]
+]
 
 const STATUS_LABEL = {
     pending: { text: 'Chờ thanh toán', cls: 'bg-yellow-100 text-yellow-700' },
@@ -30,6 +42,7 @@ export default function VipStore() {
     const [buyingId, setBuyingId] = useState(null)
     const [notice, setNotice] = useState(null) // { type: 'success' | 'error', text }
     const [applyCard, setApplyCard] = useState(null) // thẻ đang chọn để gắn
+    const [filter, setFilter] = useState('all')
 
     const loadAll = useCallback(async () => {
         setLoading(true)
@@ -108,54 +121,79 @@ export default function VipStore() {
                 packages.length === 0 ? (
                     <p className="text-gray-500 dark:text-gray-400">Hiện chưa có gói thẻ nào được bán.</p>
                 ) : (
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {packages.map((pkg) => {
-                            const t = TYPE_INFO[pkg.type]
-                            const discount = pkg.originalPrice > pkg.price
-                                ? Math.round((1 - pkg.price / pkg.originalPrice) * 100) : 0
-                            return (
-                                <div key={pkg._id} className="relative flex flex-col rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 hover:shadow-lg transition-shadow">
-                                    {pkg.badge && (
-                                        <span className="absolute -top-3 right-4 text-xs font-bold px-3 py-1 rounded-full bg-orange-500 text-white shadow">
+                    <>
+                        <div className="flex flex-wrap gap-2 mb-5" role="group" aria-label="Lọc loại thẻ">
+                            {FILTERS.map(([key, label, types]) => {
+                                const count = types ? packages.filter((p) => types.includes(p.type)).length : packages.length
+                                if (count === 0) return null
+                                return (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        aria-pressed={filter === key}
+                                        onClick={() => setFilter(key)}
+                                        className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
+                                            filter === key
+                                                ? 'bg-orange-600 border-orange-600 text-white'
+                                                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-orange-400'}`}
+                                    >
+                                        {label} <span className="opacity-70">({count})</span>
+                                    </button>
+                                )
+                            })}
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {packages.filter((p) => {
+                                const types = FILTERS.find((f) => f[0] === filter)?.[2]
+                                return !types || types.includes(p.type)
+                            }).map((pkg) => {
+                                const t = TYPE_INFO[pkg.type]
+                                const discount = pkg.originalPrice > pkg.price
+                                    ? Math.round((1 - pkg.price / pkg.originalPrice) * 100) : 0
+                                return (
+                                    <div key={pkg._id} className="relative flex flex-col rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 hover:shadow-lg transition-shadow">
+                                        {pkg.badge && (
+                                            <span className="absolute -top-3 right-4 text-xs font-bold px-3 py-1 rounded-full bg-orange-500 text-white shadow">
                       {pkg.badge}
                     </span>
-                                    )}
-                                    <div className="flex items-center gap-2 text-sm font-semibold text-orange-600 dark:text-orange-400">
-                                        <span className="w-8 h-8 rounded-lg bg-orange-50 dark:bg-orange-500/15 flex items-center justify-center">{t.icon}</span>
-                                        {t.label}
-                                    </div>
-                                    <h3 className="mt-3 text-lg font-extrabold text-gray-900 dark:text-white">{pkg.name}</h3>
-                                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 min-h-[2.5rem]">{pkg.description || t.desc}</p>
-
-                                    <ul className="mt-3 space-y-1 text-sm text-gray-600 dark:text-gray-300">
-                                        <li>⏱ Hiệu lực mỗi lượt: <b>{pkg.durationDays} ngày</b></li>
-                                        <li>🎟 Số lượt dùng: <b>{pkg.quantity}</b></li>
-                                        <li>📅 Dùng trong vòng <b>{pkg.validDays} ngày</b> kể từ khi mua</li>
-                                    </ul>
-
-                                    <div className="mt-auto pt-5">
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="text-2xl font-black text-orange-600 dark:text-orange-400">{formatVND(pkg.price)}</span>
-                                            {discount > 0 && (
-                                                <>
-                                                    <span className="text-sm text-gray-400 line-through">{formatVND(pkg.originalPrice)}</span>
-                                                    <span className="text-xs font-bold text-green-600">-{discount}%</span>
-                                                </>
-                                            )}
+                                        )}
+                                        <div className="flex items-center gap-2 text-sm font-semibold text-orange-600 dark:text-orange-400">
+                                            <span className="w-8 h-8 rounded-lg bg-orange-50 dark:bg-orange-500/15 flex items-center justify-center">{t.icon}</span>
+                                            {t.label}
                                         </div>
-                                        <button
-                                            type="button"
-                                            disabled={buyingId === pkg._id}
-                                            onClick={() => buy(pkg)}
-                                            className="mt-3 w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition-colors"
-                                        >
-                                            {buyingId === pkg._id ? 'Đang chuyển sang VNPay...' : 'Mua ngay'}
-                                        </button>
+                                        <h3 className="mt-3 text-lg font-extrabold text-gray-900 dark:text-white">{pkg.name}</h3>
+                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 min-h-[2.5rem]">{pkg.description || t.desc}</p>
+
+                                        <ul className="mt-3 space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                                            <li>⏱ Hiệu lực mỗi lượt: <b>{pkg.durationDays} ngày</b></li>
+                                            <li>🎟 Số lượt dùng: <b>{pkg.quantity}</b></li>
+                                            <li>📅 Dùng trong vòng <b>{pkg.validDays} ngày</b> kể từ khi mua</li>
+                                        </ul>
+
+                                        <div className="mt-auto pt-5">
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-2xl font-black text-orange-600 dark:text-orange-400">{formatVND(pkg.price)}</span>
+                                                {discount > 0 && (
+                                                    <>
+                                                        <span className="text-sm text-gray-400 line-through">{formatVND(pkg.originalPrice)}</span>
+                                                        <span className="text-xs font-bold text-green-600">-{discount}%</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                disabled={buyingId === pkg._id}
+                                                onClick={() => buy(pkg)}
+                                                className="mt-3 w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition-colors"
+                                            >
+                                                {buyingId === pkg._id ? 'Đang chuyển sang VNPay...' : 'Mua ngay'}
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            )
-                        })}
-                    </div>
+                                )
+                            })}
+                        </div>
+                    </>
                 )
             ) : (
                 <div className="space-y-8">
@@ -188,7 +226,7 @@ export default function VipStore() {
                                                 onClick={() => setApplyCard(c)}
                                                 className="mt-4 w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-xl transition-colors"
                                             >
-                                                Gắn cho sản phẩm
+                                                {c.packageSnapshot?.type === 'seller_vip' ? 'Kích hoạt huy hiệu' : 'Gắn cho sản phẩm'}
                                             </button>
                                         </div>
                                     )
@@ -257,8 +295,10 @@ export default function VipStore() {
 function ApplyModal({ card, onClose, onDone, onError }) {
     const [products, setProducts] = useState(null)
     const [submittingId, setSubmittingId] = useState(null)
+    const forSeller = card.packageSnapshot?.type === 'seller_vip' // thẻ gắn cho tài khoản, không cần chọn sản phẩm
 
     useEffect(() => {
+        if (forSeller) { setProducts([]); return }
         api.get('/vip/my-products')
             .then((res) => setProducts(res.data.data || []))
             .catch((e) => { onError(e.response?.data?.message || 'Không tải được sản phẩm'); onClose() })
@@ -282,6 +322,17 @@ function ApplyModal({ card, onClose, onDone, onError }) {
         }
     }
 
+    const activateSeller = async () => {
+        setSubmittingId('seller')
+        try {
+            await api.post('/vip/apply', { purchaseId: card._id })
+            onDone(`Đã kích hoạt "${card.packageSnapshot?.name}": huy hiệu Shop VIP hiện trên mọi tin của bạn`)
+        } catch (e) {
+            onError(e.response?.data?.message || 'Không thể kích hoạt thẻ')
+            setSubmittingId(null)
+        }
+    }
+
     const now = new Date()
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
@@ -294,14 +345,30 @@ function ApplyModal({ card, onClose, onDone, onError }) {
             >
                 <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                     <div>
-                        <h3 className="font-extrabold text-gray-900 dark:text-white">Chọn sản phẩm</h3>
+                        <h3 className="font-extrabold text-gray-900 dark:text-white">{forSeller ? 'Kích hoạt Shop VIP' : 'Chọn sản phẩm'}</h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{card.packageSnapshot?.name} · còn {card.usesLeft} lượt</p>
                     </div>
                     <button type="button" aria-label="Đóng" onClick={onClose} className="text-2xl leading-none text-gray-400 hover:text-gray-700">×</button>
                 </div>
 
                 <div className="overflow-y-auto p-3">
-                    {products === null ? (
+                    {forSeller ? (
+                        <div className="p-4 text-center">
+                            <div className="text-4xl mb-2">🏪</div>
+                            <p className="text-sm text-gray-700 dark:text-gray-200">
+                                Huy hiệu <b>Shop VIP</b> sẽ hiện trên <b>mọi sản phẩm</b> của bạn thêm{' '}
+                                <b>{card.packageSnapshot?.durationDays} ngày</b>. Nếu đang còn hạn, thời gian được cộng dồn.
+                            </p>
+                            <button
+                                type="button"
+                                disabled={submittingId !== null}
+                                onClick={activateSeller}
+                                className="mt-4 w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl"
+                            >
+                                {submittingId === 'seller' ? 'Đang kích hoạt...' : 'Kích hoạt ngay'}
+                            </button>
+                        </div>
+                    ) : products === null ? (
                         <p className="p-4 text-gray-500">Đang tải...</p>
                     ) : products.length === 0 ? (
                         <p className="p-4 text-gray-500 dark:text-gray-400">
@@ -312,6 +379,7 @@ function ApplyModal({ card, onClose, onDone, onError }) {
                             {products.map((p) => {
                                 const pinned = p.vipPinnedUntil && new Date(p.vipPinnedUntil) > now
                                 const hl = p.vipHighlightUntil && new Date(p.vipHighlightUntil) > now
+                                const hotNow = p.vipHotUntil && new Date(p.vipHotUntil) > now
                                 return (
                                     <li key={p._id} className="flex items-center gap-3 rounded-xl border border-gray-100 dark:border-gray-700 p-2">
                                         <img
@@ -323,11 +391,13 @@ function ApplyModal({ card, onClose, onDone, onError }) {
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{p.title}</p>
                                             <p className="text-xs text-gray-500">{formatVND(p.price)}</p>
-                                            {(pinned || hl) && (
+                                            {(pinned || hl || hotNow) && (
                                                 <p className="text-xs text-orange-600">
-                                                    {pinned && `Đang ghim đến ${formatDate(p.vipPinnedUntil)}`}
-                                                    {pinned && hl && ' · '}
-                                                    {hl && `Nổi bật đến ${formatDate(p.vipHighlightUntil)}`}
+                                                    {[
+                                                        pinned && `Ghim đến ${formatDate(p.vipPinnedUntil)}`,
+                                                        hl && `Nổi bật đến ${formatDate(p.vipHighlightUntil)}`,
+                                                        hotNow && `HOT đến ${formatDate(p.vipHotUntil)}`
+                                                    ].filter(Boolean).join(' · ')}
                                                 </p>
                                             )}
                                         </div>
@@ -337,7 +407,7 @@ function ApplyModal({ card, onClose, onDone, onError }) {
                                             onClick={() => apply(p)}
                                             className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white"
                                         >
-                                            {submittingId === p._id ? '...' : pinned || hl ? 'Gia hạn' : 'Gắn thẻ'}
+                                            {submittingId === p._id ? '...' : pinned || hl || hotNow ? 'Gia hạn' : 'Gắn thẻ'}
                                         </button>
                                     </li>
                                 )

@@ -7,8 +7,11 @@ const vipPackageSchema = new mongoose.Schema({
 
     // pin: đẩy sản phẩm lên đầu danh sách
     // highlight: viền + huy hiệu "Nổi bật"
-    // combo: cả hai
-    type: { type: String, enum: ['pin', 'highlight', 'combo'], required: true },
+    // hot: nhãn "HOT" đỏ trên sản phẩm
+    // combo: pin + highlight
+    // ultimate: pin + highlight + hot
+    // seller_vip: huy hiệu "Shop VIP" cho tài khoản, hiện trên mọi tin của shop (không cần chọn sản phẩm)
+    type: { type: String, enum: ['pin', 'highlight', 'combo', 'hot', 'ultimate', 'seller_vip'], required: true },
 
     durationDays: { type: Number, required: true, min: 1, max: 365 },   // mỗi lượt dùng có hiệu lực bao nhiêu ngày
     quantity: { type: Number, default: 1, min: 1, max: 100 },           // số lượt dùng trong 1 thẻ

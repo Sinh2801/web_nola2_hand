@@ -8,8 +8,8 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 
-// Load env vars
-dotenv.config(); // Load from .env file (not env.example)
+// Load backend/.env regardless of the directory used to start the server.
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -235,7 +235,6 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand
 });
 
 module.exports = { app, io };
-
 
 
 
