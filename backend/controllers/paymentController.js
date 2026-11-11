@@ -331,7 +331,10 @@ exports.uploadPaymentProof = async (req, res) => {
 // @access  Admin
 exports.getPendingPayments = async (req, res) => {
   try {
-    const payments = await Payment.find({ status: 'pending' })
+    const payments = await Payment.find({
+      status: 'pending',
+      paymentMethod: { $nin: ['momo', 'vnpay'] }
+    })
       .populate({
         path: 'orderId',
         select: 'finalPrice status sellerId shipperId pickupProof deliveryProof pickedUpAt deliveryMethod',
@@ -376,6 +379,13 @@ exports.confirmPayment = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy thanh toán'
+      });
+    }
+
+    if (['momo', 'vnpay'].includes(payment.paymentMethod)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thanh toán online do hệ thống tự xác nhận, Admin không duyệt hoặc từ chối thủ công'
       });
     }
 
@@ -528,6 +538,13 @@ exports.rejectPayment = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy thanh toán'
+      });
+    }
+
+    if (['momo', 'vnpay'].includes(payment.paymentMethod)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thanh toán online do hệ thống tự xác nhận, Admin không duyệt hoặc từ chối thủ công'
       });
     }
 

@@ -53,6 +53,11 @@ exports.applyVnpayResult = async (payment, { isSuccess, transId, code }, io) => 
     payment.vnpayTransId = String(transId || '');
     await payment.save();
 
+    await Order.findByIdAndUpdate(
+        payment.orderId._id || payment.orderId,
+        { expiresAt: null }
+    );
+
     if (io) {
         const order = await Order.findById(payment.orderId._id || payment.orderId);
         await createAndEmitNotification(io, payment.buyerId._id || payment.buyerId, 'payment_confirmed',
