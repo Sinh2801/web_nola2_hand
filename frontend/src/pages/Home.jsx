@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { fetchProducts } from '../store/slices/productSlice'
 import ProductRecommendations from '../components/ProductRecommendations'
 import api from '../utils/api'
+import VipBadge, { vipCardClass } from '../components/VipBadge'
 
 export default function Home() {
   const dispatch = useDispatch()
@@ -412,7 +413,8 @@ export default function Home() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {products?.slice(0, 4).map((product) => (
                 <Link key={product._id} to={`/products/${product._id}`}>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
+                  <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full relative ${vipCardClass(product)}`}>
+                    <VipBadge product={product} />
                     <div className="w-full h-48 overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-700">
                       <img
                         src={product.images?.[0] || 'https://via.placeholder.com/400x400/cccccc/ffffff?text=No+Image'}
@@ -481,7 +483,8 @@ export default function Home() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {categoryProds.slice(0, 4).map((product) => (
                       <Link key={product._id} to={`/products/${product._id}`}>
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
+                        <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full relative ${vipCardClass(product)}`}>
+                          <VipBadge product={product} />
                           <div className="w-full h-48 overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-700">
                             <img
                               src={product.images?.[0] || 'https://via.placeholder.com/400x400/cccccc/ffffff?text=No+Image'}

@@ -26,6 +26,7 @@ export default function Profile() {
   
   // Password change state
   const [passwordData, setPasswordData] = useState({
+    email: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -34,6 +35,7 @@ export default function Profile() {
   const [passwordError, setPasswordError] = useState('')
   const [showOTPModal, setShowOTPModal] = useState(false)
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', ''])
+  const [otpCooldown, setOtpCooldown] = useState(0)
 
   useEffect(() => {
     if (user) {
@@ -44,6 +46,14 @@ export default function Profile() {
         bio: user.bio || '',
         nickname: user.nickname || user.name?.toLowerCase().replace(/\s+/g, '-') || ''
       })
+      setPasswordData((current) => ({
+        ...current,
+        email: user.email || ''
+      }))
+      setShowOTPModal(false)
+      setOtpCode(['', '', '', '', '', ''])
+      setOtpCooldown(0)
+      setPasswordError('')
     }
   }, [user])
 
@@ -59,8 +69,8 @@ export default function Profile() {
     setPasswordError('')
     setSuccess('')
 
-    if (!user?.phone) {
-      setPasswordError('Vui lòng thêm số điện thoại trước khi đổi mật khẩu')
+    if (!passwordData.email.trim()) {
+      setPasswordError('Vui lòng nhập email tài khoản để nhận mã OTP')
       return
     }
 
@@ -78,12 +88,15 @@ export default function Profile() {
 
     try {
       const result = await dispatch(requestChangePassword({
+        email: passwordData.email,
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
       }))
 
       if (requestChangePassword.fulfilled.match(result)) {
         setShowOTPModal(true)
+        setOtpCode(['', '', '', '', '', ''])
+        setOtpCooldown(60)
         setPasswordError('')
       } else {
         setPasswordError(result.payload || 'Gửi mã xác minh thất bại')
@@ -122,19 +135,51 @@ export default function Profile() {
     setPasswordError('')
 
     try {
-      const result = await dispatch(verifyOTPAndChangePassword({ code }))
+      const result = await dispatch(verifyOTPAndChangePassword({
+        email: passwordData.email,
+        code
+      }))
 
       if (verifyOTPAndChangePassword.fulfilled.match(result)) {
         setSuccess('Đổi mật khẩu thành công!')
         setShowOTPModal(false)
-        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+        setPasswordData({ email: '', currentPassword: '', newPassword: '', confirmPassword: '' })
         setOtpCode(['', '', '', '', '', ''])
         setTimeout(() => setSuccess(''), 3000)
       } else {
         setPasswordError(result.payload || 'Mã xác minh không đúng')
       }
+
     } catch (error) {
       setPasswordError('Đã xảy ra lỗi. Vui lòng thử lại.')
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (otpCooldown <= 0) return undefined
+    const timer = setTimeout(() => setOtpCooldown(otpCooldown - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [otpCooldown])
+
+  const handleResendChangePasswordOTP = async () => {
+    if (otpCooldown > 0 || passwordLoading) return
+
+    setPasswordLoading(true)
+    setPasswordError('')
+    try {
+      const result = await dispatch(requestChangePassword({
+        email: passwordData.email,
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      }))
+      if (requestChangePassword.fulfilled.match(result)) {
+        setOtpCode(['', '', '', '', '', ''])
+        setOtpCooldown(60)
+      } else {
+        setPasswordError(result.payload || 'Không thể gửi lại mã OTP')
+      }
     } finally {
       setPasswordLoading(false)
     }
@@ -371,8 +416,8 @@ export default function Profile() {
                   <div className="mb-8">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Thay đổi mật khẩu</h3>
                     
-                    {/* Warning Banner - Only show if no phone */}
-                    {!user?.phone && (
+                    {/* Email verification is required before changing the password. */}
+                    {false && (
                       <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-4 mb-6 flex items-start">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-500 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -396,6 +441,25 @@ export default function Profile() {
                     )}
 
                     <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Email tài khoản *
+                        </label>
+                        <input
+                          key={user?.email || 'change-password-email'}
+                          type="email"
+                          value={passwordData.email}
+                          readOnly
+                          required
+                          name="change-password-email"
+                          autoComplete="off"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
+                          aria-describedby="change-password-email-help"
+                        />
+                        <p id="change-password-email-help" className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Email được lấy từ tài khoản hiện đang đăng nhập.
+                        </p>
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Mật khẩu hiện tại *
@@ -442,7 +506,7 @@ export default function Profile() {
 
                       <button
                         type="submit"
-                        disabled={passwordLoading || !user?.phone}
+                        disabled={passwordLoading}
                         className="mt-6 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:dark:bg-gray-600 disabled:text-gray-500 disabled:dark:text-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors"
                       >
                         {passwordLoading ? 'Đang xử lý...' : 'ĐỔI MẬT KHẨU'}
@@ -492,7 +556,7 @@ export default function Profile() {
                       Xác minh mã OTP
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                      Chúng tôi đã gửi mã xác minh đến email <strong>{user?.email}</strong>. Vui lòng nhập mã 6 chữ số.
+                      Chúng tôi đã gửi mã xác minh đến email <strong>{passwordData.email}</strong>. Vui lòng nhập mã 6 chữ số.
                     </p>
 
                     <form onSubmit={handleOTPSubmit}>
@@ -506,6 +570,19 @@ export default function Profile() {
                             maxLength={1}
                             value={digit}
                             onChange={(e) => handleOTPChange(index, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
+                                document.getElementById(`otp-${index - 1}`)?.focus()
+                              }
+                            }}
+                            onPaste={(e) => {
+                              e.preventDefault()
+                              const pasted = e.clipboardData.getData('text').trim()
+                              if (/^\d{6}$/.test(pasted)) {
+                                setOtpCode(pasted.split(''))
+                                document.getElementById('otp-5')?.focus()
+                              }
+                            }}
                             className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
                             autoFocus={index === 0}
                           />
@@ -517,6 +594,17 @@ export default function Profile() {
                           {passwordError}
                         </div>
                       )}
+
+                      <div className="text-center mb-4">
+                        <button
+                          type="button"
+                          onClick={handleResendChangePasswordOTP}
+                          disabled={otpCooldown > 0 || passwordLoading}
+                          className="text-sm text-orange-600 dark:text-orange-400 hover:text-orange-500 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        >
+                          {otpCooldown > 0 ? `Gửi lại mã sau ${otpCooldown}s` : 'Không nhận được mã? Gửi lại'}
+                        </button>
+                      </div>
 
                       <div className="flex gap-3">
                         <button

@@ -665,7 +665,9 @@ exports.getRevenueStats = async (req, res) => {
       filterType = 'range',
       timeRange = 'month',
       date: selectedDate,
-      month: selectedMonth
+      month: selectedMonth,
+      from: customFrom,
+      to: customTo
     } = req.query;
     const now = new Date();
     let startDate = null;
@@ -715,22 +717,35 @@ exports.getRevenueStats = async (req, res) => {
           return res.status(400).json({ success: false, message: 'Khoảng thời gian không hợp lệ' });
       }
       endDate = now;
+    } else if (filterType === 'custom') {
+      const re = /^(\d{4})-(\d{2})-(\d{2})$/;
+      const a = typeof customFrom === 'string' && customFrom.match(re);
+      const b = typeof customTo === 'string' && customTo.match(re);
+      if (!a || !b) {
+        return res.status(400).json({ success: false, message: 'Khoảng ngày không hợp lệ' });
+      }
+      startDate = new Date(Date.UTC(Number(a[1]), Number(a[2]) - 1, Number(a[3])));
+      endDate = new Date(Date.UTC(Number(b[1]), Number(b[2]) - 1, Number(b[3])));
+      endDate.setUTCDate(endDate.getUTCDate() + 1); // gồm cả ngày kết thúc
+      if (startDate >= endDate) {
+        return res.status(400).json({ success: false, message: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc' });
+      }
     } else {
       return res.status(400).json({ success: false, message: 'Loại bộ lọc không hợp lệ' });
     }
 
     const paymentDateFilter = startDate
-      ? { confirmedAt: { $gte: startDate, $lt: endDate } }
-      : {};
+        ? { confirmedAt: { $gte: startDate, $lt: endDate } }
+        : {};
     const confirmedMatch = { status: 'confirmed', ...paymentDateFilter };
     const statusPeriodMatch = startDate
-      ? {
+        ? {
           $or: [
             { status: 'confirmed', confirmedAt: { $gte: startDate, $lt: endDate } },
             { status: { $in: ['pending', 'rejected'] }, createdAt: { $gte: startDate, $lt: endDate } }
           ]
         }
-      : {};
+        : {};
 
     // Total revenue
     const revenueResult = await Payment.aggregate([
@@ -753,17 +768,17 @@ exports.getRevenueStats = async (req, res) => {
     ]);
 
     const dailyChartMatch = filterType === 'range' && timeRange === 'all'
-      ? {
+        ? {
           status: 'confirmed',
           confirmedAt: { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), $lt: now }
         }
-      : confirmedMatch;
+        : confirmedMatch;
     const monthlyChartMatch = filterType === 'range' && timeRange === 'all'
-      ? {
+        ? {
           status: 'confirmed',
           confirmedAt: { $gte: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000), $lt: now }
         }
-      : confirmedMatch;
+        : confirmedMatch;
 
     // Revenue by day within the selected period
     const dailyRevenue = await Payment.aggregate([
@@ -833,6 +848,44 @@ exports.getRevenueStats = async (req, res) => {
       { $limit: 10 }
     ]);
 
+    // Revenue by payment method
+    const methodStats = await Payment.aggregate([
+      { $match: confirmedMatch },
+      { $group: { _id: '$paymentMethod', revenue: { $sum: '$amount' }, count: { $sum: 1 } } },
+      { $sort: { revenue: -1 } }
+    ]);
+
+    // Revenue by product category
+    const categoryStats = await Payment.aggregate([
+      { $match: confirmedMatch },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'orderId',
+          foreignField: '_id',
+          as: 'order'
+        }
+      },
+      { $unwind: '$order' },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'order.productId',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      { $unwind: '$product' },
+      {
+        $group: {
+          _id: '$product.category',
+          revenue: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { revenue: -1 } }
+    ]);
+
     // Average transaction value
     const avgTransaction = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
 
@@ -854,7 +907,9 @@ exports.getRevenueStats = async (req, res) => {
         }, {}),
         dailyRevenue,
         monthlyRevenue,
-        topProducts
+        topProducts,
+        methodStats,
+        categoryStats
       }
     });
   } catch (error) {
@@ -891,13 +946,13 @@ exports.getRevenueTable = async (req, res) => {
     // Chọn ngày cụ thể → liệt kê từng đơn
     if (filterType === 'date') {
       const list = await Payment.find(match)
-        .sort({ confirmedAt: -1 })
-        .populate({
-          path: 'orderId',
-          select: 'productId',
-          populate: { path: 'productId', select: 'title' }
-        })
-        .lean();
+          .sort({ confirmedAt: -1 })
+          .populate({
+            path: 'orderId',
+            select: 'productId',
+            populate: { path: 'productId', select: 'title' }
+          })
+          .lean();
       return res.json({
         mode: 'orders',
         rows: list.map(p => ({
@@ -915,7 +970,7 @@ exports.getRevenueTable = async (req, res) => {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$confirmedAt', timezone: 'Asia/Ho_Chi_Minh' } },
           sodon: { $sum: 1 },
           doanhthu: { $sum: '$amount' }
-      } },
+        } },
       { $project: { _id: 0, day: '$_id', sodon: 1, doanhthu: 1 } },
       { $sort: { day: -1 } }
     ]);
@@ -926,4 +981,3 @@ exports.getRevenueTable = async (req, res) => {
     res.status(500).json({ success: false, message: e.message });
   }
 };
-

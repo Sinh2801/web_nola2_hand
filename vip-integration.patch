@@ -1,0 +1,284 @@
+diff -ruN orig/backend/controllers/paymentController.js proj/backend/controllers/paymentController.js
+--- orig/backend/controllers/paymentController.js	2026-10-31 16:08:02.000000000 +0000
++++ proj/backend/controllers/paymentController.js	2026-11-05 07:54:49.091558904 +0000
+@@ -7,6 +7,7 @@
+ const { uploadToCloudinary } = require('../utils/uploadImage');
+ const { createAndEmitNotification } = require('../utils/notifications');
+ const vnpayUtil = require('../utils/vnpay');
++const vipController = require('./vipController');
+ const createPaymentRecord = require('../utils/createPaymentRecord');
+
+ // @desc    Create payment (when buyer clicks "Thanh toán")
+@@ -906,7 +907,11 @@
+     if (!verify.isVerified) return res.json(IPN.IpnFailChecksum);
+
+     const payment = await Payment.findOne({ vnpayTxnRef: verify.vnp_TxnRef });
+-    if (!payment) return res.json(IPN.IpnOrderNotFound);
++    if (!payment) {
++      // Không phải đơn hàng thường: có thể là đơn mua thẻ VIP
++      const vipResponse = await vipController.handleVnpayIpn(verify, req.app.get('io'));
++      return res.json(vipResponse || IPN.IpnOrderNotFound);
++    }
+     if (verify.vnp_Amount !== payment.amount) return res.json(IPN.IpnInvalidAmount);
+     if (payment.status === 'confirmed') return res.json(IPN.InpOrderAlreadyConfirmed);
+
+@@ -933,6 +938,10 @@
+       return res.status(400).json({ success: false, message: 'Dữ liệu trả về không hợp lệ' });
+
+     const payment = await Payment.findOne({ vnpayTxnRef: verify.vnp_TxnRef });
++    if (!payment) {
++      const vipStatus = await vipController.getVnpayStatusForUser(verify, req.user.id, req.app.get('io'));
++      if (vipStatus) return res.json({ success: true, data: vipStatus });
++    }
+     if (!payment || payment.buyerId.toString() !== req.user.id)
+       return res.status(404).json({ success: false, message: 'Không tìm thấy giao dịch' });
+
+diff -ruN orig/backend/controllers/productController.js proj/backend/controllers/productController.js
+--- orig/backend/controllers/productController.js	2026-10-10 10:52:48.000000000 +0000
++++ proj/backend/controllers/productController.js	2026-11-05 07:54:49.089154642 +0000
+@@ -216,12 +216,45 @@
+       console.log('Query object:', JSON.stringify(query, null, 2))
+     }
+
+-    const products = await Product.find(query)
+-      .sort(sortOption)
+-      .skip(skip)
+-      .limit(Number(limit))
+-      .populate('userId', 'name avatar')
+-      .select('-__v');
++    // Sản phẩm đang có thẻ VIP "ghim" luôn nằm đầu khi xem mặc định (mới nhất).
++    // Các kiểu sắp xếp khác (giá, đánh giá, phổ biến...) giữ nguyên để kết quả công bằng.
++    const pinFirst = !sort || sort === 'newest' || sort === '-createdAt' || (sort === 'relevance' && !search);
++    const lim = Number(limit);
++    let products;
++
++    if (pinFirst) {
++      const now = new Date();
++      const pinnedQuery = { ...query, vipPinnedUntil: { $gt: now } };
++      const pinnedCount = await Product.countDocuments(pinnedQuery);
++      products = [];
++
++      if (skip < pinnedCount) {
++        products = await Product.find(pinnedQuery)
++          .sort({ vipPinnedAt: -1 })
++          .skip(skip)
++          .limit(lim)
++          .populate('userId', 'name avatar')
++          .select('-__v');
++      }
++
++      const need = lim - products.length;
++      if (need > 0) {
++        const regular = await Product.find({ ...query, $nor: [{ vipPinnedUntil: { $gt: now } }] })
++          .sort(sortOption)
++          .skip(Math.max(0, skip - pinnedCount))
++          .limit(need)
++          .populate('userId', 'name avatar')
++          .select('-__v');
++        products = products.concat(regular);
++      }
++    } else {
++      products = await Product.find(query)
++        .sort(sortOption)
++        .skip(skip)
++        .limit(lim)
++        .populate('userId', 'name avatar')
++        .select('-__v');
++    }
+
+     const total = await Product.countDocuments(query);
+
+diff -ruN orig/backend/models/Product.js proj/backend/models/Product.js
+--- orig/backend/models/Product.js	2026-10-29 12:10:24.000000000 +0000
++++ proj/backend/models/Product.js	2026-11-05 07:54:49.086451710 +0000
+@@ -108,7 +108,11 @@
+   moderationReason: {
+     type: String,
+     default: null
+-  }
++  },
++  // ── Thẻ VIP ──
++  vipPinnedUntil: { type: Date, default: null },     // còn hạn: sản phẩm được ghim lên đầu danh sách
++  vipPinnedAt: { type: Date, default: null },        // lần gắn thẻ gần nhất, dùng để xếp thứ tự giữa các tin ghim
++  vipHighlightUntil: { type: Date, default: null }   // còn hạn: hiện viền + huy hiệu "Nổi bật"
+ }, {
+   timestamps: true
+ });
+@@ -119,6 +123,7 @@
+ productSchema.index({ location: 1 });
+ productSchema.index({ status: 1 });
+ productSchema.index({ createdAt: -1 });
++productSchema.index({ vipPinnedUntil: 1, vipPinnedAt: -1 });
+
+ module.exports = mongoose.model('Product', productSchema);
+
+diff -ruN orig/backend/server.js proj/backend/server.js
+--- orig/backend/server.js	2026-10-09 21:17:02.000000000 +0000
++++ proj/backend/server.js	2026-11-05 07:54:49.088412535 +0000
+@@ -37,6 +37,7 @@
+ const couponAdminRoutes = require('./routes/coupon').adminRouter;
+ const shipperRoutes = require('./routes/shipper');
+ const sellerBankQRRoutes = require('./routes/sellerBankQR');
++const vipRoutes = require('./routes/vip');
+
+ const app = express();
+ const server = http.createServer(app);
+@@ -183,6 +184,7 @@
+ app.use('/api/admin/coupons', couponAdminRoutes);
+ app.use('/api/shipper', shipperRoutes);
+ app.use('/api/seller-bankqr', sellerBankQRRoutes);
++app.use('/api/vip', vipRoutes);
+
+ // Health check
+ app.get('/api/health', (req, res) => {
+diff -ruN orig/frontend/src/App.jsx proj/frontend/src/App.jsx
+--- orig/frontend/src/App.jsx	2026-10-31 16:08:02.000000000 +0000
++++ proj/frontend/src/App.jsx	2026-11-05 07:54:49.118658223 +0000
+@@ -38,6 +38,8 @@
+ import AdminRoute from './components/AdminRoute'
+ import ShipperDashboard from './pages/ShipperDashboard'
+ import PaymentResult from './pages/PaymentResult.jsx';
++import VipStore from './pages/VipStore'
++import VipManagement from './pages/VipManagement'
+
+ function App() {
+   console.log(' App component rendered')
+@@ -84,6 +86,7 @@
+           <Route path="/my-promotions" element={<MyPromotions />} />
+           <Route path="/notifications/settings" element={<NotificationSettings />} />
+           <Route path="/shipper" element={<ShipperDashboard />} />
++          <Route path="/vip" element={<VipStore />} />
+         </Route>
+
+         {/* Admin Routes */}
+@@ -92,6 +95,7 @@
+           <Route path="/admin/payments" element={<PaymentManagement />} />
+           <Route path="/admin/bankqr" element={<BankQRManagement />} />
+           <Route path="/admin/revenue" element={<RevenueStats />} />
++          <Route path="/admin/vip" element={<VipManagement />} />
+         </Route>
+       </Routes>
+     </Layout>
+diff -ruN orig/frontend/src/components/ProfileDropdown.jsx proj/frontend/src/components/ProfileDropdown.jsx
+--- orig/frontend/src/components/ProfileDropdown.jsx	2026-10-06 21:15:42.000000000 +0000
++++ proj/frontend/src/components/ProfileDropdown.jsx	2026-11-05 07:54:49.119080380 +0000
+@@ -275,6 +275,16 @@
+                 </div>
+                 <span className="text-gray-800 dark:text-gray-200">Ưu đãi của tôi</span>
+               </Link>
++              <Link
++                to="/vip"
++                onClick={() => setIsOpen(false)}
++                className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
++              >
++                <div className="w-5 h-5 bg-orange-500 rounded mr-3 flex items-center justify-center">
++                  <span className="text-xs">👑</span>
++                </div>
++                <span className="text-gray-800 dark:text-gray-200">Thẻ VIP đẩy tin</span>
++              </Link>
+             </div>
+           </div>
+
+diff -ruN orig/frontend/src/pages/AdminDashboard.jsx proj/frontend/src/pages/AdminDashboard.jsx
+--- orig/frontend/src/pages/AdminDashboard.jsx	2026-10-29 12:10:24.000000000 +0000
++++ proj/frontend/src/pages/AdminDashboard.jsx	2026-11-05 07:54:49.123560777 +0000
+@@ -698,6 +698,9 @@
+             <Link to="/admin/revenue" className="flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
+               <span>📊</span> Thống kê doanh thu
+             </Link>
++            <Link to="/admin/vip" className="flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
++              <span>👑</span> Quản lý thẻ VIP
++            </Link>
+             <Link to="/admin/payments" className="flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
+               <span>💳</span> Quản lý thanh toán
+             </Link>
+diff -ruN orig/frontend/src/pages/Home.jsx proj/frontend/src/pages/Home.jsx
+--- orig/frontend/src/pages/Home.jsx	2026-10-08 12:44:52.000000000 +0000
++++ proj/frontend/src/pages/Home.jsx	2026-11-05 07:54:49.128663193 +0000
+@@ -4,6 +4,7 @@
+ import { fetchProducts } from '../store/slices/productSlice'
+ import ProductRecommendations from '../components/ProductRecommendations'
+ import api from '../utils/api'
++import VipBadge, { vipCardClass } from '../components/VipBadge'
+
+ export default function Home() {
+   const dispatch = useDispatch()
+@@ -412,7 +413,8 @@
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+               {products?.slice(0, 4).map((product) => (
+                 <Link key={product._id} to={`/products/${product._id}`}>
+-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
++                  <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full relative ${vipCardClass(product)}`}>
++                    <VipBadge product={product} />
+                     <div className="w-full h-48 overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-700">
+                       <img
+                         src={product.images?.[0] || 'https://via.placeholder.com/400x400/cccccc/ffffff?text=No+Image'}
+@@ -481,7 +483,8 @@
+                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                     {categoryProds.slice(0, 4).map((product) => (
+                       <Link key={product._id} to={`/products/${product._id}`}>
+-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
++                        <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full relative ${vipCardClass(product)}`}>
++                          <VipBadge product={product} />
+                           <div className="w-full h-48 overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-700">
+                             <img
+                               src={product.images?.[0] || 'https://via.placeholder.com/400x400/cccccc/ffffff?text=No+Image'}
+diff -ruN orig/frontend/src/pages/PaymentResult.jsx proj/frontend/src/pages/PaymentResult.jsx
+--- orig/frontend/src/pages/PaymentResult.jsx	2026-10-31 16:08:02.000000000 +0000
++++ proj/frontend/src/pages/PaymentResult.jsx	2026-11-05 07:54:49.124692682 +0000
+@@ -73,13 +73,20 @@
+     }, []);
+
+     const v = VIEWS[state];
++    const isVip = info?.kind === 'vip';
++    const VIP_DESC = {
++        success: 'Thẻ VIP đã được kích hoạt. Vào "Thẻ của tôi" để gắn thẻ cho sản phẩm.',
++        pending: 'Giao dịch chưa thành công. Bạn có thể quay lại cửa hàng thẻ để mua lại.',
++        cancelled: 'Bạn đã hủy giao dịch. Bạn có thể quay lại cửa hàng thẻ để mua lại.',
++        expired: 'Giao dịch đã hết hạn. Bạn có thể quay lại cửa hàng thẻ để mua lại.',
++    };
+
+     return (
+         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 w-full max-w-md text-center">
+                 <div className="text-5xl mb-4">{v.icon}</div>
+                 <h1 className={`text-xl font-bold mb-2 ${v.color}`}>{v.title}</h1>
+-                {v.desc && <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{v.desc}</p>}
++                {v.desc && <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{isVip ? (VIP_DESC[state] || v.desc) : v.desc}</p>}
+
+                 {state === 'success' && info && (
+                     <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 mb-4 text-sm text-left space-y-1">
+@@ -92,10 +99,10 @@
+                 {state !== 'checking' && (
+                     <div className="flex flex-col gap-2 mt-2">
+                         <Link
+-                            to="/orders?type=buying"
++                            to={isVip ? '/vip?tab=cards' : '/orders?type=buying'}
+                             className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 rounded-xl"
+                         >
+-                            Xem đơn mua của tôi
++                            {isVip ? 'Xem thẻ của tôi' : 'Xem đơn mua của tôi'}
+                         </Link>
+                         <Link to="/" className="text-sm text-gray-500 hover:underline">Về trang chủ</Link>
+                     </div>
+diff -ruN orig/frontend/src/pages/Products.jsx proj/frontend/src/pages/Products.jsx
+--- orig/frontend/src/pages/Products.jsx	2026-10-08 12:44:52.000000000 +0000
++++ proj/frontend/src/pages/Products.jsx	2026-11-05 07:54:49.125639589 +0000
+@@ -4,6 +4,7 @@
+ import { fetchProducts } from '../store/slices/productSlice'
+ import SearchAutocomplete from '../components/SearchAutocomplete'
+ import api from '../utils/api'
++import VipBadge, { vipCardClass } from '../components/VipBadge'
+
+ export default function Products() {
+   const dispatch = useDispatch()
+@@ -520,7 +521,8 @@
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+               {displayProducts.map((product) => (
+                 <Link key={product._id} to={`/products/${product._id}`}>
+-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full relative">
++                  <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full relative ${vipCardClass(product)}`}>
++                    <VipBadge product={product} />
+                     {/* Badge AI Match (chỉ khi Semantic Search) */}
+                     {isSemanticSearch && product.aiScore != null && semanticAiEnabled && (
+                       <div className="absolute top-2 left-2 z-10">

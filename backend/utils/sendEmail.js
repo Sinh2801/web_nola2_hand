@@ -34,10 +34,18 @@ const sendEmail = async (options) => {
       user: senderEmail,
       pass: senderPassword
     },
+    // Some local antivirus/proxy tools replace the SMTP certificate.
+    // Keep certificate validation enabled outside development.
+    tls: {
+      rejectUnauthorized: process.env.EMAIL_TLS_REJECT_UNAUTHORIZED !== 'false' &&
+        process.env.NODE_ENV !== 'development'
+    },
     // Outlook/Hotmail specific settings
     ...(isOutlook && {
       tls: {
-        ciphers: 'SSLv3'
+        ciphers: 'SSLv3',
+        rejectUnauthorized: process.env.EMAIL_TLS_REJECT_UNAUTHORIZED !== 'false' &&
+          process.env.NODE_ENV !== 'development'
       }
     })
   });
@@ -61,7 +69,6 @@ const sendEmail = async (options) => {
 };
 
 module.exports = sendEmail;
-
 
 
 

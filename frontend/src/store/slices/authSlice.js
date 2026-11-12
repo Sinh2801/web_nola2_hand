@@ -34,7 +34,11 @@ export const register = createAsyncThunk(
         const response = await api.post('/auth/register', userData)
         return response.data
       } catch (error) {
-        return rejectWithValue(error.response?.data?.message || 'Đăng ký thất bại')
+        return rejectWithValue(
+          error.response?.data?.errors?.[0]?.message ||
+          error.response?.data?.message ||
+          'Đăng ký thất bại'
+        )
       }
     }
 )
@@ -143,9 +147,9 @@ export const resendVerificationCodeResetPassword = createAsyncThunk(
 // Request change password (send OTP)
 export const requestChangePassword = createAsyncThunk(
     'auth/requestChangePassword',
-    async ({ currentPassword, newPassword }, { rejectWithValue }) => {
+    async ({ email, currentPassword, newPassword }, { rejectWithValue }) => {
       try {
-        const response = await api.post('/auth/request-change-password', { currentPassword, newPassword })
+        const response = await api.post('/auth/request-change-password', { email, currentPassword, newPassword })
         return response.data
       } catch (error) {
         return rejectWithValue(error.response?.data?.message || 'Gửi mã xác minh thất bại')
@@ -156,9 +160,9 @@ export const requestChangePassword = createAsyncThunk(
 // Verify OTP and change password
 export const verifyOTPAndChangePassword = createAsyncThunk(
     'auth/verifyOTPAndChangePassword',
-    async ({ code }, { rejectWithValue }) => {
+    async ({ email, code }, { rejectWithValue }) => {
       try {
-        const response = await api.post('/auth/verify-otp-change-password', { code })
+        const response = await api.post('/auth/verify-otp-change-password', { email, code })
         return response.data
       } catch (error) {
         return rejectWithValue(error.response?.data?.message || 'Xác minh thất bại')

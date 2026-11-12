@@ -698,6 +698,9 @@ function AdminDashboard() {
             <Link to="/admin/revenue" className="flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
               <span>📊</span> Thống kê doanh thu
             </Link>
+            <Link to="/admin/vip" className="flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
+              <span>👑</span> Quản lý thẻ VIP
+            </Link>
             <Link to="/admin/payments" className="flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
               <span>💳</span> Quản lý thanh toán
             </Link>

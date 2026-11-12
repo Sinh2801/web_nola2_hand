@@ -216,12 +216,45 @@ exports.getProducts = async (req, res) => {
       console.log('Query object:', JSON.stringify(query, null, 2))
     }
 
-    const products = await Product.find(query)
-      .sort(sortOption)
-      .skip(skip)
-      .limit(Number(limit))
-      .populate('userId', 'name avatar')
-      .select('-__v');
+    // Sản phẩm đang có thẻ VIP "ghim" luôn nằm đầu khi xem mặc định (mới nhất).
+    // Các kiểu sắp xếp khác (giá, đánh giá, phổ biến...) giữ nguyên để kết quả công bằng.
+    const pinFirst = !sort || sort === 'newest' || sort === '-createdAt' || (sort === 'relevance' && !search);
+    const lim = Number(limit);
+    let products;
+
+    if (pinFirst) {
+      const now = new Date();
+      const pinnedQuery = { ...query, vipPinnedUntil: { $gt: now } };
+      const pinnedCount = await Product.countDocuments(pinnedQuery);
+      products = [];
+
+      if (skip < pinnedCount) {
+        products = await Product.find(pinnedQuery)
+          .sort({ vipPinnedAt: -1 })
+          .skip(skip)
+          .limit(lim)
+          .populate('userId', 'name avatar')
+          .select('-__v');
+      }
+
+      const need = lim - products.length;
+      if (need > 0) {
+        const regular = await Product.find({ ...query, $nor: [{ vipPinnedUntil: { $gt: now } }] })
+          .sort(sortOption)
+          .skip(Math.max(0, skip - pinnedCount))
+          .limit(need)
+          .populate('userId', 'name avatar')
+          .select('-__v');
+        products = products.concat(regular);
+      }
+    } else {
+      products = await Product.find(query)
+        .sort(sortOption)
+        .skip(skip)
+        .limit(lim)
+        .populate('userId', 'name avatar')
+        .select('-__v');
+    }
 
     const total = await Product.countDocuments(query);
     

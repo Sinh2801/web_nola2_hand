@@ -108,7 +108,11 @@ const productSchema = new mongoose.Schema({
   moderationReason: {
     type: String,
     default: null
-  }
+  },
+  // ── Thẻ VIP ──
+  vipPinnedUntil: { type: Date, default: null },     // còn hạn: sản phẩm được ghim lên đầu danh sách
+  vipPinnedAt: { type: Date, default: null },        // lần gắn thẻ gần nhất, dùng để xếp thứ tự giữa các tin ghim
+  vipHighlightUntil: { type: Date, default: null }   // còn hạn: hiện viền + huy hiệu "Nổi bật"
 }, {
   timestamps: true
 });
@@ -119,6 +123,7 @@ productSchema.index({ category: 1 });
 productSchema.index({ location: 1 });
 productSchema.index({ status: 1 });
 productSchema.index({ createdAt: -1 });
+productSchema.index({ vipPinnedUntil: 1, vipPinnedAt: -1 });
 
 module.exports = mongoose.model('Product', productSchema);
 
