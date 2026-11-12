@@ -2,8 +2,9 @@ const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
   // Use custom sender email if provided, otherwise use default from .env
-  const senderEmail = options.fromEmail || process.env.EMAIL_USER;
-  const senderPassword = options.fromPassword || process.env.EMAIL_PASSWORD;
+  const senderEmail = (options.fromEmail || process.env.EMAIL_USER || '').trim();
+  // Gmail App Passwords are often copied with spaces between groups.
+  const senderPassword = (options.fromPassword || process.env.EMAIL_PASSWORD || '').replace(/\s/g, '');
   
   if (!senderEmail || !senderPassword) {
     throw new Error('Email sender chưa được cấu hình. Vui lòng kiểm tra EMAIL_USER và EMAIL_PASSWORD trong .env');
@@ -19,7 +20,7 @@ const sendEmail = async (options) => {
   );
 
   // Determine host based on email domain
-  let emailHost = process.env.EMAIL_HOST;
+  let emailHost = process.env.EMAIL_HOST?.trim();
   if (!emailHost && isOutlook) {
     emailHost = 'smtp-mail.outlook.com';
   } else if (!emailHost) {
@@ -69,7 +70,6 @@ const sendEmail = async (options) => {
 };
 
 module.exports = sendEmail;
-
 
 
 

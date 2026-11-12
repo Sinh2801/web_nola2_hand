@@ -168,7 +168,9 @@ const userSchema = new mongoose.Schema({
       accountHolder: { type: String, trim: true },
       qrCodeImage: { type: String }
     }
-  }
+  },
+  // Thẻ VIP: còn hạn thì hiện huy hiệu "Shop VIP" trên mọi tin của người bán
+  vipSellerUntil: { type: Date, default: null }
 }, {
   timestamps: true
 });

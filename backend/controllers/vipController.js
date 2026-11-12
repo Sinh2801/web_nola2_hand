@@ -8,7 +8,16 @@ const { createAndEmitNotification } = require('../utils/notifications');
 
 const DAY = 24 * 60 * 60 * 1000;
 const PENDING_MINUTES = 30;
-const TYPES = ['pin', 'highlight', 'combo'];
+const TYPES = ['pin', 'highlight', 'combo', 'hot', 'ultimate', 'seller_vip'];
+// Mỗi loại thẻ tác động những gì
+const EFFECTS = {
+    pin: ['pin'],
+    highlight: ['highlight'],
+    combo: ['pin', 'highlight'],
+    hot: ['hot'],
+    ultimate: ['pin', 'highlight', 'hot'],
+    seller_vip: ['seller']
+};
 
 /* ───────────────────────── Helper ───────────────────────── */
 
@@ -150,7 +159,7 @@ exports.getMyCards = async (req, res) => {
 exports.getMyProducts = async (req, res) => {
     try {
         const data = await Product.find({ userId: req.user.id, status: 'Available', isApproved: true })
-            .select('title images price vipPinnedUntil vipHighlightUntil')
+            .select('title images price vipPinnedUntil vipHighlightUntil vipHotUntil')
             .sort({ createdAt: -1 })
             .limit(100);
         res.json({ success: true, data });
@@ -159,17 +168,25 @@ exports.getMyProducts = async (req, res) => {
     }
 };
 
-// @route POST /api/vip/apply    body: { purchaseId, productId }
+// @route POST /api/vip/apply    body: { purchaseId, productId }   (thẻ Shop VIP không cần productId)
 exports.applyCard = async (req, res) => {
     try {
         const { purchaseId, productId } = req.body;
         const now = new Date();
 
-        const product = await Product.findOne({
-            _id: productId, userId: req.user.id, status: 'Available', isApproved: true
-        });
-        if (!product) {
-            return res.status(404).json({ success: false, message: 'Chỉ gắn thẻ được cho sản phẩm đang bán, đã duyệt và thuộc về bạn' });
+        // Xem loại thẻ trước (chưa trừ lượt) để biết có cần chọn sản phẩm không
+        const peek = await VipPurchase.findOne({ _id: purchaseId, userId: req.user.id }).select('packageSnapshot');
+        if (!peek) return res.status(404).json({ success: false, message: 'Không tìm thấy thẻ' });
+
+        const effects = EFFECTS[peek.packageSnapshot.type] || [];
+        const forSeller = effects.includes('seller');
+
+        let product = null;
+        if (!forSeller) {
+            product = await Product.findOne({ _id: productId, userId: req.user.id, status: 'Available', isApproved: true });
+            if (!product) {
+                return res.status(404).json({ success: false, message: 'Chỉ gắn thẻ được cho sản phẩm đang bán, đã duyệt và thuộc về bạn' });
+            }
         }
 
         // Trừ 1 lượt trước (nguyên tử) để không bị dùng quá số lượt khi bấm nhiều lần
@@ -182,37 +199,48 @@ exports.applyCard = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Thẻ không tồn tại, đã hết lượt hoặc đã hết hạn' });
         }
 
-        const { type, durationDays } = card.packageSnapshot;
+        const { durationDays } = card.packageSnapshot;
         const extend = (current) => {
             const base = current && current > now ? current.getTime() : now.getTime();
             return new Date(base + durationDays * DAY);   // đang còn hạn thì cộng dồn
         };
+        const refund = () => VipPurchase.updateOne({ _id: card._id }, { $inc: { usesLeft: 1 } });   // hoàn lại lượt khi lỗi
 
-        const set = {};
-        const record = { productId: product._id, appliedAt: now };
-        if (type === 'pin' || type === 'combo') {
-            set.vipPinnedUntil = extend(product.vipPinnedUntil);
-            set.vipPinnedAt = now;
-            record.pinnedUntil = set.vipPinnedUntil;
-        }
-        if (type === 'highlight' || type === 'combo') {
-            set.vipHighlightUntil = extend(product.vipHighlightUntil);
-            record.highlightUntil = set.vipHighlightUntil;
-        }
+        const record = { appliedAt: now };
+        const result = { usesLeft: card.usesLeft };
 
         try {
-            await Product.updateOne({ _id: product._id }, { $set: set });
+            if (forSeller) {
+                const user = await User.findById(req.user.id).select('vipSellerUntil');
+                record.sellerUntil = extend(user?.vipSellerUntil);
+                await User.updateOne({ _id: req.user.id }, { $set: { vipSellerUntil: record.sellerUntil } });
+                result.vipSellerUntil = record.sellerUntil;
+            } else {
+                const set = {};
+                record.productId = product._id;
+                if (effects.includes('pin')) {
+                    set.vipPinnedUntil = extend(product.vipPinnedUntil);
+                    set.vipPinnedAt = now;
+                    record.pinnedUntil = set.vipPinnedUntil;
+                }
+                if (effects.includes('highlight')) {
+                    set.vipHighlightUntil = extend(product.vipHighlightUntil);
+                    record.highlightUntil = set.vipHighlightUntil;
+                }
+                if (effects.includes('hot')) {
+                    set.vipHotUntil = extend(product.vipHotUntil);
+                    record.hotUntil = set.vipHotUntil;
+                }
+                await Product.updateOne({ _id: product._id }, { $set: set });
+                Object.assign(result, set);
+            }
         } catch (err) {
-            await VipPurchase.updateOne({ _id: card._id }, { $inc: { usesLeft: 1 } });   // hoàn lại lượt
+            await refund();
             throw err;
         }
         await VipPurchase.updateOne({ _id: card._id }, { $push: { applied: record } });
 
-        res.json({
-            success: true,
-            message: 'Đã gắn thẻ cho sản phẩm',
-            data: { usesLeft: card.usesLeft, vipPinnedUntil: set.vipPinnedUntil, vipHighlightUntil: set.vipHighlightUntil }
-        });
+        res.json({ success: true, message: forSeller ? 'Đã kích hoạt huy hiệu Shop VIP' : 'Đã gắn thẻ cho sản phẩm', data: result });
     } catch (e) {
         console.error('[VIP] applyCard error:', e.message);
         res.status(500).json({ success: false, message: 'Không thể gắn thẻ' });

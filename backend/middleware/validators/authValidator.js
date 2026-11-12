@@ -94,3 +94,24 @@ exports.validateVerifyOTP = [
     .withMessage('Mã xác minh chỉ được chứa số'),
   handleValidationErrors
 ];
+
+// Validation cho xác nhận OTP đặt lại mật khẩu
+exports.validateResetPasswordOTP = [
+  body('email')
+    .trim()
+    .isEmail()
+    .withMessage('Email không hợp lệ')
+    .normalizeEmail(),
+  body('code')
+    .trim()
+    .isLength({ min: 6, max: 6 })
+    .withMessage('Mã xác minh phải có 6 chữ số')
+    .isNumeric()
+    .withMessage('Mã xác minh chỉ được chứa số'),
+  body('newPassword')
+    .isLength({ min: 6 })
+    .withMessage('Mật khẩu phải có ít nhất 6 ký tự')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Mật khẩu phải có ít nhất 1 chữ hoa, 1 chữ thường và 1 số'),
+  handleValidationErrors
+];

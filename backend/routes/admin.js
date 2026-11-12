@@ -14,6 +14,10 @@ const {
   getRevenueDaily,
   dismissReports
 } = require('../controllers/adminController');
+const {
+  getRecommendationModel,
+  trainRecommendationModel
+} = require('../controllers/productRecommendationController');
 const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
@@ -35,4 +39,6 @@ router.put('/products/:id/reject', rejectProduct);
 router.get('/reports', getReports);
 router.put('/products/:id/dismiss-reports', dismissReports);
 router.get('/revenue-table', getRevenueTable);
+router.get('/recommendation-model', getRecommendationModel);
+router.post('/recommendation-model/train', trainRecommendationModel);
 module.exports = router;

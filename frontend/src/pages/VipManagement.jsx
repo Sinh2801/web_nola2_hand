@@ -8,7 +8,10 @@ const formatVND = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(Number
 const formatDateTime = (d) => (d ? new Date(d).toLocaleString('vi-VN') : '—')
 const pad2 = (n) => String(n).padStart(2, '0')
 
-const TYPE_LABEL = { pin: '🚀 Đẩy top', highlight: '⭐ Nổi bật', combo: '👑 Combo' }
+const TYPE_LABEL = {
+    pin: '🚀 Đẩy top', highlight: '⭐ Nổi bật', hot: '🔥 HOT', combo: '👑 Combo',
+    ultimate: '💎 Siêu VIP', seller_vip: '🏪 Shop VIP'
+}
 const STATUS = {
     pending: ['Chờ thanh toán', 'bg-yellow-100 text-yellow-700'],
     paid: ['Đã thanh toán', 'bg-green-100 text-green-700'],
@@ -274,7 +277,10 @@ function Packages({ flash }) {
                                 <select className={inputCls} value={form.type} onChange={set('type')}>
                                     <option value="pin">Đẩy top</option>
                                     <option value="highlight">Nổi bật</option>
+                                    <option value="hot">Nhãn HOT</option>
                                     <option value="combo">Combo (đẩy top + nổi bật)</option>
+                                    <option value="ultimate">Siêu VIP (đẩy top + nổi bật + HOT)</option>
+                                    <option value="seller_vip">Shop VIP (huy hiệu tài khoản)</option>
                                 </select>
                             </label>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nhãn (tùy chọn)

@@ -108,6 +108,16 @@ npm install
 
 Lần đầu tiên cài đặt có thể mất 2-5 phút.
 
+## 🤖 Mô hình gợi ý sản phẩm
+
+Mô hình xếp hạng sản phẩm dùng các đơn đã xác nhận/hoàn tất, đánh giá của người mua,
+bookmark, danh mục, tag, điểm sao và lượt xem. Kết quả được dùng cho cả
+`/api/products/recommended` và hai API sản phẩm tương tự.
+
+Admin có thể xem chỉ số và lịch sử huấn luyện tại `GET /api/admin/recommendation-model`
+và huấn luyện lại bằng `POST /api/admin/recommendation-model/train`. Hai API này yêu cầu
+quyền admin; lần huấn luyện được lưu trong collection `recommendationmodels`.
+
 ### Bước 3: Tạo file `.env`
 
 Tạo file mới tên `.env` trong thư mục `backend/` và copy nội dung dưới đây:
@@ -469,4 +479,3 @@ Nếu gặp vấn đề, kiểm tra:
 ---
 
 **Happy Coding! 🚀**
-

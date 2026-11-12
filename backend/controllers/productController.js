@@ -233,7 +233,7 @@ exports.getProducts = async (req, res) => {
           .sort({ vipPinnedAt: -1 })
           .skip(skip)
           .limit(lim)
-          .populate('userId', 'name avatar')
+          .populate('userId', 'name avatar vipSellerUntil')
           .select('-__v');
       }
 
@@ -243,7 +243,7 @@ exports.getProducts = async (req, res) => {
           .sort(sortOption)
           .skip(Math.max(0, skip - pinnedCount))
           .limit(need)
-          .populate('userId', 'name avatar')
+          .populate('userId', 'name avatar vipSellerUntil')
           .select('-__v');
         products = products.concat(regular);
       }
@@ -252,7 +252,7 @@ exports.getProducts = async (req, res) => {
         .sort(sortOption)
         .skip(skip)
         .limit(lim)
-        .populate('userId', 'name avatar')
+        .populate('userId', 'name avatar vipSellerUntil')
         .select('-__v');
     }
 
