@@ -471,11 +471,16 @@ async function fetchHits(query) {
 function filterHits(hits, item) {
     const seen = new Set();
     const result = [];
+    // The first required tag is the item's primary keyword (for example
+    // "laptop", "mouse", or "keyboard"). Requiring it prevents broad tags
+    // such as "computer" from attaching an unrelated image to a product.
+    const primaryKeyword = item.must?.[0];
     for (const h of hits) {
         if (seen.has(h.id)) continue;
         seen.add(h.id);
         const tagsLower = h.tags.toLowerCase();
         const words = new Set(tagsLower.split(/[^a-z]+/).filter(Boolean));
+        if (primaryKeyword && !hasAny(tagsLower, words, [primaryKeyword])) continue;
         if (!hasAny(tagsLower, words, item.must)) continue;
         if (hasAny(tagsLower, words, item.exclude || [])) continue;
         if (!item.allowPeople && hasAny(tagsLower, words, PEOPLE_WORDS)) continue;

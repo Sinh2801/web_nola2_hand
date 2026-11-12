@@ -104,8 +104,14 @@ async function trainRecommendationModel(mode = 'manual') {
     Order.distinct('buyerId', { status: { $in: COMPLETED_STATUSES } }),
     Product.find({ isApproved: true, status: 'Available' }).sort({ viewCount: -1 }).limit(4).select('_id').lean()
   ]);
+  const orderProductIds = [...new Set(orders.map(order => String(order.productId)))];
+  const existingProducts = await Product.find({ _id: { $in: orderProductIds } })
+    .select('_id').lean();
+  const existingProductIds = new Set(existingProducts.map(product => String(product._id)));
+  const validOrders = orders.filter(order => existingProductIds.has(String(order.productId)));
+  const trainingCustomerCount = new Set(validOrders.map(order => String(order.buyerId))).size;
   const productIdsByCustomer = new Map();
-  orders.forEach(order => {
+  validOrders.forEach(order => {
     const customer = String(order.buyerId);
     if (!productIdsByCustomer.has(customer)) productIdsByCustomer.set(customer, new Set());
     productIdsByCustomer.get(customer).add(String(order.productId));
@@ -161,7 +167,14 @@ async function trainRecommendationModel(mode = 'manual') {
       const product = pairProductMap.get(pair.productId);
       const pairedProduct = pairProductMap.get(pair.pairedProductId);
       if (!product || !pairedProduct) return null;
-      const purchaseScore = pair.count / maxCoPurchase;
+      // Normalize by both the strongest pair and the number of customers.
+      // A pair seen once must not look like a 100% confidence recommendation
+      // when the training data contains multiple customers.
+      const relativePurchaseScore = pair.count / maxCoPurchase;
+      const customerSupport = trainingCustomerCount > 0
+        ? pair.count / trainingCustomerCount
+        : 0;
+      const purchaseScore = relativePurchaseScore * customerSupport;
       const totalScore = purchaseScore * 0.7 + productSimilarity(product, pairedProduct) * 0.3;
       return {
         productId: product._id,
@@ -182,8 +195,8 @@ async function trainRecommendationModel(mode = 'manual') {
   const run = {
     trainedAt: new Date(),
     mode,
-    trainingPurchases: orders.length,
-    trainingCustomers: customers.length,
+    trainingPurchases: validOrders.length,
+    trainingCustomers: trainingCustomerCount,
     trainingReviews: reviews.length,
     ...metrics,
     durationMs: Date.now() - startedAt
@@ -192,7 +205,7 @@ async function trainRecommendationModel(mode = 'manual') {
     { key: 'default' },
     {
       $set: { trainedAt: run.trainedAt, metrics, dataSummary: {
-        purchases: orders.length, customers: customers.length, reviews: reviews.length
+        purchases: validOrders.length, customers: trainingCustomerCount, reviews: reviews.length
       }, productPairs },
       $setOnInsert: { key: 'default', version: 1 },
       $push: { trainingHistory: { $each: [run], $slice: -20 } }
