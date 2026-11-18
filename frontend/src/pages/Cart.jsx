@@ -1,11 +1,12 @@
-import React, { useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import {
     fetchCart,
     removeFromCart,
     clearCart
 } from '../store/slices/cartSlice'
+import BuyNowModal from '../components/BuyNowModal'
 
 const formatPrice = (price) => {
     if (!price) return '0'
@@ -17,7 +18,11 @@ const PLACEHOLDER =
 
 export default function Cart() {
     const dispatch = useDispatch()
+    const navigate = useNavigate()
     const { items, loading, error } = useSelector((state) => state.cart)
+
+    const [checkoutOpen, setCheckoutOpen] = useState(false)
+    const [orderedIds, setOrderedIds] = useState([])
 
     // Tải lại giỏ mỗi khi mở trang để dữ liệu luôn mới nhất
     useEffect(() => {
@@ -26,11 +31,22 @@ export default function Cart() {
 
     // Bỏ các dòng mà sản phẩm đã bị xóa khỏi hệ thống
     const validItems = items.filter((i) => i.product)
+
+    const checkoutItems = validItems.map((i) => ({ product: i.product }))
     const total = validItems.reduce((sum, i) => sum + (i.product.price || 0), 0)
 
-    const handleRemove = (productId) => {
-        dispatch(removeFromCart(productId))
+    const handleCheckout = () => {
+        setOrderedIds([])
+        setCheckoutOpen(true)
     }
+
+    const handleCloseCheckout = () => {
+        orderedIds.forEach((id) => dispatch(removeFromCart(id)))
+        setOrderedIds([])
+        setCheckoutOpen(false)
+    }
+
+    const handleRemove = (productId) => dispatch(removeFromCart(productId))
 
     const handleClear = () => {
         if (window.confirm('Bạn có chắc muốn xóa toàn bộ giỏ hàng?')) {
@@ -38,10 +54,13 @@ export default function Cart() {
         }
     }
 
-    const handleCheckout = () => {
-        // TODO: nối với luồng tạo đơn hàng / thanh toán có sẵn của dự án
-        alert('Chức năng thanh toán đang được phát triển')
+
+    const handleOrderCreated = () => {
+        dispatch(clearCart())      // đặt hàng xong mới xóa giỏ
+        setCheckoutOpen(false)
+        navigate('/orders')        // đổi thành route "Đơn mua" của bạn
     }
+
 
     // Đang tải lần đầu
     if (loading && validItems.length === 0) {
@@ -207,6 +226,13 @@ export default function Cart() {
                     </div>
                 </div>
             </div>
+            <BuyNowModal
+                items={checkoutItems}
+                isOpen={checkoutOpen}
+                onClose={handleCloseCheckout}
+                onItemsOrdered={setOrderedIds}
+                onOrderCreated={() => navigate('/orders?type=buying')}
+            />
         </div>
     )
 }
