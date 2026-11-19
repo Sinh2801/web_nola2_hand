@@ -8,7 +8,6 @@ import VerifyOTP from './pages/VerifyOTP'
 import ForgotPassword from './pages/ForgotPassword'
 import Products from './pages/Products'
 import ProductDetail from './pages/ProductDetail'
-import Cart from './pages/Cart'
 import CreateProduct from './pages/CreateProduct'
 import EditProduct from './pages/EditProduct'
 import Profile from './pages/Profile'
@@ -66,7 +65,6 @@ function App() {
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/cart" element={<Cart />} />
           <Route path="/create-product" element={<CreateProduct />} />
           <Route path="/products/:id/edit" element={<EditProduct />} />
           <Route path="/profile" element={<Profile />} />
