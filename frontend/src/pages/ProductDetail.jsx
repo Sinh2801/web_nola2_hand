@@ -1,8 +1,10 @@
-import React, {useEffect, useState} from 'react'
-import {useParams, useNavigate, Link} from 'react-router-dom'
-import {useDispatch, useSelector} from 'react-redux'
-import {fetchProduct} from '../store/slices/productSlice'
-import {addToFavorites, removeFromFavorites, fetchFavorites} from '../store/slices/userSlice'
+
+import React, { useEffect, useState } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import SellerTrustCard from '../components/SellerTrustCard';
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchProduct } from '../store/slices/productSlice'
+import { addToFavorites, removeFromFavorites, fetchFavorites } from '../store/slices/userSlice'
 import api from '../utils/api'
 import ReviewSection from '../components/ReviewSection'
 import OfferModal from '../components/OfferModal'
@@ -403,6 +405,7 @@ export default function ProductDetail() {
                                     </div>
                                 </div>
 
+
                                 <div className="mb-8">
                                     <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3 uppercase tracking-wider">Người
                                         bán</h3>
@@ -433,6 +436,33 @@ export default function ProductDetail() {
                                         </svg>
                                     </Link>
                                 </div>
+
+              <div className="mb-8">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3 uppercase tracking-wider">Người bán</h3>
+                <Link to={`/user/${product.userId?._id}`} className="group flex items-center p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
+                  <div className="relative">
+                    <img
+                      src={product.userId?.avatar || 'https://via.placeholder.com/50'}
+                      alt={product.userId?.name}
+                      className="w-14 h-14 rounded-xl object-cover mr-4 border-2 border-white dark:border-gray-700"
+                    />
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                      {product.userId?.name}
+                    </p>
+                    {product.userId?.studentId && (
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">MSSV: {product.userId.studentId}</p>
+                    )}
+                  </div>
+                  <svg className="w-5 h-5 text-gray-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+                <SellerTrustCard userId={product.userId?._id} variant="compact" />
+              </div>
+
 
                                 {/* Actions */}
                                 <div className="flex flex-col gap-3">

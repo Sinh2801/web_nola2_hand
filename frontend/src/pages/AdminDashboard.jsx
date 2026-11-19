@@ -689,13 +689,13 @@ function AdminDashboard() {
         <div className="absolute inset-0 bg-grid-white/[0.03] bg-[size:20px_20px]" />
         <div className="absolute -top-24 -right-20 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-yellow-300/10 rounded-full blur-3xl" />
-        <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+        <div className="relative z-10 flex flex-col gap-6">
           <div>
             <span className="text-xs font-bold uppercase tracking-widest text-orange-100">Hệ thống quản trị</span>
             <h1 className="text-3xl sm:text-4xl font-black mt-1 text-white drop-shadow-sm leading-normal">BẢNG ĐIỀU KHIỂN</h1>
             <p className="text-orange-50/90 text-sm mt-1">Hôm nay là {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap gap-2.5 pt-5 border-t border-white/20">
             <Link to="/admin/revenue" className="flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
               <span>📊</span> Thống kê doanh thu
             </Link>

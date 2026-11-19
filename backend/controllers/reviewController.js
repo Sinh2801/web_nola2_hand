@@ -161,11 +161,7 @@ const createReview = async (req, res) => {
 
     // AI phân tích sentiment từ comment (bất đồng bộ, không chặn response)
     if (review.comment && review.comment.trim()) {
-      analyzeSentiment(review.comment)
-          .then(({ sentiment, score }) => {
-            return Review.findByIdAndUpdate(review._id, { sentiment, sentimentScore: score }, { new: true });
-          })
-          .catch(err => console.error('Sentiment analysis error:', err));
+      analyzeAndStoreSentiment(review._id, review.comment);
     }
 
     // Populate thông tin người đánh giá
@@ -286,6 +282,15 @@ const getUserReviews = async (req, res) => {
 };
 
 // Cập nhật đánh giá (chỉ chủ đánh giá, chỉ sửa số sao và nội dung)
+// Phân tích cảm xúc chạy nền và lưu kèm nguồn quyết định (mô hình tự train / Gemini / mặc định)
+const analyzeAndStoreSentiment = (reviewId, comment) =>
+  analyzeSentiment(comment)
+    .then(({ sentiment, score, source }) => {
+      console.log(`[sentiment] ${source} -> ${sentiment} (${score})`);
+      return Review.findByIdAndUpdate(reviewId, { sentiment, sentimentScore: score, sentimentSource: source || null });
+    })
+    .catch((err) => console.error('Sentiment analysis error:', err));
+
 const updateReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
@@ -309,9 +314,19 @@ const updateReview = async (req, res) => {
       });
     }
 
+    const commentChanged = (review.comment || '').trim() !== String(comment || '').trim();
     review.rating = ratingNum;
     review.comment = comment;
+    if (commentChanged) {
+      // Nội dung đổi thì kết quả cũ không còn đúng: xóa rồi phân tích lại
+      review.sentiment = null;
+      review.sentimentScore = null;
+      review.sentimentSource = null;
+    }
     await review.save();
+    if (commentChanged && review.comment && review.comment.trim()) {
+      analyzeAndStoreSentiment(review._id, review.comment);
+    }
 
     // Cập nhật lại average rating
     await updateUserRating(review.reviewedUserId);
