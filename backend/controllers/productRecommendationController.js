@@ -155,10 +155,6 @@ exports.getRecommendationModel = async (req, res) => {
       .populate('productPairs.productId', 'title')
       .populate('productPairs.pairedProductId', 'title')
       .lean();
-    if (model) {
-      model.productPairs = (model.productPairs || [])
-        .filter(pair => pair.productId && pair.pairedProductId);
-    }
     return res.json({ success: true, data: model || {
       trainedAt: null,
       metrics: { hitRateAt4: 0, precisionAt4: 0, popularBaselineAt4: 0 },
@@ -175,15 +171,7 @@ exports.getRecommendationModel = async (req, res) => {
 exports.trainRecommendationModel = async (req, res) => {
   try {
     const result = await trainRecommendationModel('manual');
-    const model = await RecommendationModel.findOne({ key: 'default' })
-      .populate('productPairs.productId', 'title')
-      .populate('productPairs.pairedProductId', 'title')
-      .lean();
-    if (model) {
-      model.productPairs = (model.productPairs || [])
-        .filter(pair => pair.productId && pair.pairedProductId);
-    }
-    return res.json({ success: true, message: 'Đã huấn luyện lại mô hình', data: model });
+    return res.json({ success: true, message: 'Đã huấn luyện lại mô hình', data: result.model });
   } catch (error) {
     console.error('Error training recommendation model:', error);
     return res.status(500).json({ success: false, message: 'Không thể huấn luyện mô hình' });
