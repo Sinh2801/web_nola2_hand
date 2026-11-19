@@ -5,6 +5,7 @@ import {
 } from "recharts";
 import api from "../utils/api";
 
+/* ====================== Cấu hình & helper ====================== */
 
 const FEE_RATE = 0.05; // 5% phí sàn
 const ORANGE = "#f97316";
