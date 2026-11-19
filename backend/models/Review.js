@@ -51,6 +51,11 @@ const reviewSchema = new mongoose.Schema({
     min: 1,
     max: 5,
     default: null
+  },
+  // Nguồn quyết định kết quả cảm xúc: local-model | local-model-low-confidence | gemini | default
+  sentimentSource: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true

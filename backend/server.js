@@ -37,6 +37,7 @@ const couponRoutes = require('./routes/coupon').router;
 const couponAdminRoutes = require('./routes/coupon').adminRouter;
 const shipperRoutes = require('./routes/shipper');
 const sellerBankQRRoutes = require('./routes/sellerBankQR');
+const sellerTrustRoutes = require('./routes/sellerTrust');
 const vipRoutes = require('./routes/vip');
 
 const app = express();
@@ -184,6 +185,7 @@ app.use('/api/coupons', couponRoutes);
 app.use('/api/admin/coupons', couponAdminRoutes);
 app.use('/api/shipper', shipperRoutes);
 app.use('/api/seller-bankqr', sellerBankQRRoutes);
+app.use('/api/seller-trust', sellerTrustRoutes);
 app.use('/api/vip', vipRoutes);
 
 // Health check

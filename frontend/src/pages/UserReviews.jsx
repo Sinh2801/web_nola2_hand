@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../utils/api';
 import StarRating from '../components/StarRating';
+import SellerTrustCard, { SentimentChip } from '../components/SellerTrustCard';
 
 const UserReviews = () => {
   const { userId } = useParams();
@@ -72,6 +73,8 @@ const UserReviews = () => {
         <h1 className="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-200">
           Đánh giá người dùng
         </h1>
+
+        <SellerTrustCard userId={userId} variant="public" />
 
         {/* Review Stats */}
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 shadow-sm">
@@ -158,6 +161,12 @@ const UserReviews = () => {
                   <p className="text-gray-700 dark:text-gray-300 ml-13">
                     {review.comment}
                   </p>
+                )}
+
+                {review.sentiment && (
+                  <div className="mt-2 ml-13">
+                    <SentimentChip sentiment={review.sentiment} score={review.sentimentScore} />
+                  </div>
                 )}
 
                 {review.productId && (

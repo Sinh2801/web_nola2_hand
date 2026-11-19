@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import SellerTrustCard from '../components/SellerTrustCard';
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchProduct } from '../store/slices/productSlice'
 import { addToFavorites, removeFromFavorites, fetchFavorites } from '../store/slices/userSlice'
@@ -380,6 +381,7 @@ export default function ProductDetail() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </Link>
+                <SellerTrustCard userId={product.userId?._id} variant="compact" />
               </div>
 
               {/* Actions */}

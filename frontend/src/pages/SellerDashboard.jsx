@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useParams, Link } from 'react-router-dom';
+import SellerTrustCard from '../components/SellerTrustCard';
 import api from '../utils/api';
 import Toast from '../components/Toast';
 import SellerRevenue from '../components/SellerRevenue';
@@ -677,6 +678,7 @@ export default function SellerDashboard() {
                 {/* Reviews Tab */}
                 {activeTab === 'reviews' && stats.reviewStats && (
                     <div className="space-y-6">
+                      <SellerTrustCard userId={userId || user.id} variant="owner" />
                       {/* Review Summary */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
