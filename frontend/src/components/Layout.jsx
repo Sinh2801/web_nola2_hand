@@ -9,12 +9,16 @@ import Chatbot from './Chatbot'
 import VipMarquee from './VipMarquee'
 import api from '../utils/api'
 
+import { fetchCart, resetCart } from '../store/slices/cartSlice'
+
 export default function Layout({ children }) {
   const { user, isAuthenticated, token } = useSelector(state => state.auth)
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const location = useLocation()
   const hasVerifiedRef = useRef(false)
+  const cartCount = useSelector(state => state.cart?.items?.length ?? 0)
+
 
   console.log('Layout component rendered', { isAuthenticated, hasUser: !!user })
 
@@ -42,7 +46,13 @@ export default function Layout({ children }) {
     verifyUser()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only run once on mount
-
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchCart())
+    } else {
+      dispatch(resetCart())
+    }
+  }, [isAuthenticated, dispatch])
   const handleLogout = () => {
     dispatch(logout())
     navigate('/login')
@@ -102,7 +112,31 @@ export default function Layout({ children }) {
                 >
                   Đăng bán
                 </Link>
+                <button
+                  onClick={()=>navigate('/cart')}
+                  
+                  className="relative bg-gray-100 dark:bg-gray-700 rounded-lg w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 transition-colors"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2.5}
+                  >
 
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 2.3c-.6.6-.2 1.7.7 1.7H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
+                </button>
                 {/* Icons with rounded square backgrounds */}
                 <div className="flex items-center space-x-2">
                   {/* Theme Toggle */}
