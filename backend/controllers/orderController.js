@@ -3,6 +3,7 @@ const Product = require('../models/Product');
 const Coupon = require('../models/Coupon');
 const { createAndEmitNotification } = require('../utils/notifications');
 const { uploadReturnEvidenceToCloudinary } = require('../utils/uploadImage');
+const Payment = require('../models/Payment');
 
 const mapProductCategoryToCouponCategory = (productCat) => {
   const mapping = {
@@ -18,7 +19,7 @@ const mapProductCategoryToCouponCategory = (productCat) => {
 };
 
 const getOrCreatePaymentForOrder = async (order) => {
-  const Payment = require('../models/Payment');
+
   const User = require('../models/User');
   let payment = await Payment.findOne({ orderId: order._id });
   if (!payment) {
@@ -63,77 +64,90 @@ const getOrCreatePaymentForOrder = async (order) => {
 };
 
 const handleSellerApproval = async (order, userId, req) => {
+  const isOnline = ['momo', 'vnpay'].includes(order.paymentMethod);
+
+  // Đơn trả online: chỉ cho người bán xác nhận khi tiền đã về
+  if (isOnline) {
+    const existing = await Payment.findOne({ orderId: order._id });
+    if (!existing || existing.status !== 'confirmed') {
+      return {
+        success: false,
+        message: 'Đơn này thanh toán online, vui lòng chờ người mua thanh toán xong rồi mới xác nhận'
+      };
+    }
+  }
+
   const payment = await getOrCreatePaymentForOrder(order);
 
-  // Update seller approval on payment
   payment.sellerApproved = true;
   payment.sellerApprovedBy = userId;
   payment.sellerApprovedAt = new Date();
+
+  // Đơn online đã trả tiền: mặc định admin đã duyệt (hệ thống tự xác nhận qua cổng)
+  if (isOnline && !payment.adminApproved) {
+    payment.adminApproved = true;
+    payment.adminApprovedAt = new Date();
+  }
   await payment.save();
 
-  let message = 'Đã xác nhận đơn hàng từ phía người bán';
+  // Online: tiền về là đủ. QR/COD: chờ admin duyệt như cũ
+  const paymentOk = isOnline ? payment.status === 'confirmed' : payment.adminApproved;
 
-  // Check if admin has also approved
-  if (payment.adminApproved) {
+  let message;
+  if (paymentOk) {
     order.status = 'confirmed';
     order.confirmedAt = new Date();
     await order.save();
 
-    if (payment.paymentProof) {
-      payment.status = 'confirmed';
-      payment.confirmedBy = userId;
-      payment.confirmedAt = new Date();
-    } else {
-      payment.status = 'pending';
+    if (!isOnline && payment.status !== 'confirmed') {
+      payment.status = payment.paymentProof ? 'confirmed' : 'pending';
+      if (payment.status === 'confirmed') {
+        payment.confirmedAt = payment.confirmedAt || new Date();
+      }
+      await payment.save();
     }
-    await payment.save();
 
-    // Tự động đánh dấu sản phẩm là "Đã bán"
     if (order.productId) {
-      await Product.findByIdAndUpdate(order.productId._id || order.productId, {
-        status: 'Sold'
-      });
+      await Product.findByIdAndUpdate(order.productId._id || order.productId, { status: 'Sold' });
     }
 
-    message = 'Đã xác nhận đơn hàng thành công (Cả Người bán và Admin đều đã phê duyệt)';
+    message = isOnline
+        ? 'Đã xác nhận đơn hàng thành công'
+        : 'Đã xác nhận đơn hàng thành công (Cả Người bán và Admin đều đã phê duyệt)';
 
-    // Create notification for buyer
     const io = req.app.get('io');
     if (io) {
       await createAndEmitNotification(
-        io,
-        order.buyerId,
-        'order_confirmed',
-        'Đơn hàng đã được xác nhận',
-        `Người bán và Admin đã xác nhận đơn hàng cho sản phẩm "${order.productId.title}"`,
-        { orderId: order._id, productId: order.productId._id, productName: order.productId.title }
+          io,
+          order.buyerId,
+          'order_confirmed',
+          'Đơn hàng đã được xác nhận',
+          `${isOnline ? 'Người bán' : 'Người bán và Admin'} đã xác nhận đơn hàng cho sản phẩm "${order.productId.title}"`,
+          { orderId: order._id, productId: order.productId._id, productName: order.productId.title }
       );
     }
   } else {
+    // Chỉ còn đơn QR/COD chưa được admin duyệt mới vào nhánh này
     message = 'Đã xác nhận đơn hàng từ phía người bán. Đang chờ Admin phê duyệt thanh toán để hoàn tất.';
-    
-    // Notify Admin
+
     const io = req.app.get('io');
     if (io) {
       const User = require('../models/User');
       const admins = await User.find({ isAdmin: true, isActive: true });
       for (const admin of admins) {
         await createAndEmitNotification(
-          io,
-          admin._id,
-          'payment_pending_review',
-          'Người bán đã xác nhận đơn hàng',
-          `Người bán đã duyệt đơn hàng. Vui lòng phê duyệt thanh toán cho mã GD: ${payment.transactionCode}`,
-          { paymentId: payment._id, orderId: order._id }
+            io,
+            admin._id,
+            'payment_pending_review',
+            'Người bán đã xác nhận đơn hàng',
+            `Người bán đã duyệt đơn hàng. Vui lòng phê duyệt thanh toán cho mã GD: ${payment.transactionCode}`,
+            { paymentId: payment._id, orderId: order._id }
         );
       }
     }
   }
 
-  return {
-    success: true,
-    message
-  };
+  return { success: true, message };
 };
 
 // @desc    Create direct order (Buy Now)
