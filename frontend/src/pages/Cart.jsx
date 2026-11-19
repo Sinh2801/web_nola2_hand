@@ -23,19 +23,59 @@ export default function Cart() {
 
     const [checkoutOpen, setCheckoutOpen] = useState(false)
     const [orderedIds, setOrderedIds] = useState([])
+    const [selectedIds, setSelectedIds] = useState([])
 
     // Tải lại giỏ mỗi khi mở trang để dữ liệu luôn mới nhất
     useEffect(() => {
         dispatch(fetchCart())
     }, [dispatch])
-
-    // Bỏ các dòng mà sản phẩm đã bị xóa khỏi hệ thống
+    // Lọc sản phẩm hợp lệ
     const validItems = items.filter((i) => i.product)
 
-    const checkoutItems = validItems.map((i) => ({ product: i.product }))
-    const total = validItems.reduce((sum, i) => sum + (i.product.price || 0), 0)
+    // Lọc sản phẩm được chọn
+    const selectedItems = validItems.filter((i) =>
+        selectedIds.includes(i.product._id)
+    )
+
+    // Danh sách sản phẩm gửi sang BuyNowModal
+    const checkoutItems = selectedItems.map((i) => ({
+        product: i.product
+    }))
+
+    // Tính tổng tiền sản phẩm được chọn
+    const total = selectedItems.reduce(
+        (sum, i) => sum + (Number(i.product.price) || 0),
+        0
+    )
+
+    // Chọn hoặc bỏ chọn sản phẩm
+    const handleSelectProduct = (productId) => {
+        setSelectedIds((prev) =>
+            prev.includes(productId)
+                ? prev.filter((id) => id !== productId)
+                : [...prev, productId]
+        )
+    }
+
+    // Chọn tất cả hoặc bỏ chọn tất cả
+    const handleSelectAll = () => {
+        const allSelected = validItems.every((i) =>
+            selectedIds.includes(i.product._id)
+        )
+
+        setSelectedIds(
+            allSelected
+                ? []
+                : validItems.map((i) => i.product._id)
+        )
+    }
 
     const handleCheckout = () => {
+        if (selectedItems.length === 0) {
+            alert('Vui lòng chọn ít nhất một sản phẩm!')
+            return
+        }
+
         setOrderedIds([])
         setCheckoutOpen(true)
     }
@@ -115,12 +155,37 @@ export default function Cart() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Danh sách sản phẩm */}
+
+
                 <div className="lg:col-span-2 space-y-3">
+                    <div className="flex items-center gap-2 mb-4">
+                        <input
+                            type="checkbox"
+                            checked={
+                                validItems.length > 0 &&
+                                validItems.every((i) =>
+                                    selectedIds.includes(i.product._id)
+                                )
+                            }
+                            onChange={handleSelectAll}
+                            className="w-5 h-5 accent-orange-500 cursor-pointer"
+                        />
+
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                            Chọn tất cả ({selectedIds.length}/{validItems.length})
+                        </span>
+                    </div>
                     {validItems.map(({ product }) => (
                         <div
                             key={product._id}
                             className="flex items-center gap-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow"
                         >
+                            <input
+                                type="checkbox"
+                                checked={selectedIds.includes(product._id)}
+                                onChange={() => handleSelectProduct(product._id)}
+                                className="w-5 h-5 accent-orange-500 cursor-pointer flex-shrink-0"
+                            />
                             <Link
                                 to={`/products/${product._id}`}
                                 className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700"
@@ -190,7 +255,7 @@ export default function Cart() {
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between text-gray-600 dark:text-gray-300">
                                 <span>Số sản phẩm</span>
-                                <span>{validItems.length}</span>
+                                <span>{selectedItems.length}</span>
                             </div>
                             <div className="flex justify-between text-gray-600 dark:text-gray-300">
                                 <span>Tạm tính</span>
