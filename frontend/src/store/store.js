@@ -6,6 +6,7 @@ import postReducer from './slices/postSlice.js'
 import storyReducer from './slices/storySlice.js'
 import followReducer from './slices/followSlice.js'
 import collectionReducer from './slices/collectionSlice.js'
+import cartReducer from './slices/cartSlice.js'
 
 export const store = configureStore({
   reducer: {
@@ -15,14 +16,7 @@ export const store = configureStore({
     post: postReducer,
     story: storyReducer,
     follow: followReducer,
-    collection: collectionReducer
+    collection: collectionReducer,
+    cart: cartReducer
   }
 })
-
-
-
-
-
-
-
-
