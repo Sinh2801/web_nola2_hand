@@ -1,6 +1,6 @@
 # Backend Setup Guide - MongoDB Local
 
-Hướng dẫn chi tiết cách setup backend DNU Marketplace sử dụng MongoDB local.
+Hướng dẫn chi tiết cách setup backend Nola2Hand sử dụng MongoDB local.
 
 ## 📋 Mục lục
 

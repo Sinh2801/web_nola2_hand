@@ -1,4 +1,4 @@
-# Câu hỏi thường gặp (FAQ) - Sàn giao dịch đồ cũ sinh viên Đại học Đại Nam
+# Câu hỏi thường gặp (FAQ) - Sàn giao dịch đồ cũ sinh viên Đại học Nông Lâm
 
 ## Đăng ký và Tài khoản
 
