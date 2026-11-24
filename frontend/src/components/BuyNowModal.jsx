@@ -2,6 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import api from '../utils/api';
 
+// Chuẩn hóa: bỏ khoảng trắng/dấu, đổi +84 / 84 thành 0
+const normalizePhone = (value = '') =>
+    value
+        .replace(/[\s.\-()]/g, '')
+        .replace(/^\+84/, '0')
+        .replace(/^84(?=\d{9}$)/, '0');
+
+// Đầu số hợp lệ: 03x, 05x, 07x, 08x, 09x + 7 số cuối
+const isValidVNPhone = (value) =>
+    /^0(3[2-9]|5[25689]|7[06-9]|8[1-9]|9\d)\d{7}$/.test(normalizePhone(value));
+
+const PHONE_ERROR_MESSAGE = 'Số điện thoại không hợp lệ, phải bao gồm tối đa 10 số';
+
+const ONLINE_PAYMENT_LABELS = {
+  momo: 'MoMo',
+  vnpay: 'VNPay'
+};
+
 export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }) {
   const { user } = useSelector(state => state.auth);
   const [paymentMethod, setPaymentMethod] = useState('transfer');
@@ -17,6 +35,7 @@ export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [orderCreatedData, setOrderCreatedData] = useState(null);
 
   // Coupon states
@@ -40,6 +59,8 @@ export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }
     wards: false
   });
 
+  const isOnlinePayment = ['momo', 'vnpay'].includes(paymentMethod);
+
   useEffect(() => {
     if (isOpen) {
       setShippingAddress({
@@ -62,6 +83,7 @@ export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }
       setDiscountAmount(0);
       setCouponError('');
       setCouponSuccess('');
+      setPhoneError('');
     }
   }, [user, isOpen]);
 
@@ -158,6 +180,19 @@ export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }
     }));
   };
 
+  const handlePhoneChange = (e) => {
+    const value = e.target.value.replace(/[^\d+]/g, '');
+    setShippingAddress(prev => ({ ...prev, phone: value }));
+    if (phoneError) setPhoneError('');
+  };
+
+  const handlePhoneBlur = () => {
+    const phone = shippingAddress.phone;
+    if (phone && !isValidVNPhone(phone)) {
+      setPhoneError(PHONE_ERROR_MESSAGE);
+    }
+  };
+
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) return;
     setIsValidatingCoupon(true);
@@ -204,11 +239,21 @@ export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }
       return;
     }
 
+    // Validate phone number format
+    if (!isValidVNPhone(shippingAddress.phone)) {
+      setPhoneError(PHONE_ERROR_MESSAGE);
+      setError('Vui lòng nhập số điện thoại hợp lệ');
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await api.post('/orders', {
         productId: product._id,
-        shippingAddress,
+        shippingAddress: {
+          ...shippingAddress,
+          phone: normalizePhone(shippingAddress.phone) // gửi dạng 0xxxxxxxxx
+        },
         deliveryMethod: 'delivery',
         paymentMethod,
         notes: notes.trim(),
@@ -240,8 +285,8 @@ export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }
               Đơn hàng thành công!
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 px-2 leading-relaxed">
-              {paymentMethod === ['momo', 'vnpay'].includes(paymentMethod)
-                  ? 'Đã tạo đơn hàng! Vui lòng vào "Đơn mua" và bấm "Thanh toán" để thanh toán qua MoMo.'
+              {isOnlinePayment
+                  ? `Đã tạo đơn hàng! Vui lòng vào "Đơn mua" và bấm "Thanh toán" để thanh toán qua ${ONLINE_PAYMENT_LABELS[paymentMethod]}.`
                   : 'Đã tạo đơn hàng thành công! Vui lòng chờ người bán xác nhận đơn hàng của bạn.'}
             </p>
 
@@ -339,8 +384,8 @@ export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }
                 <option value="momo">Thanh toán qua MoMo (thẻ ATM nội địa)</option>
                 <option value="vnpay">Thanh toán qua VNPay (thẻ ATM/ngân hàng)</option>
                 <option value="cash">Tiền mặt (Thanh toán khi nhận hàng)</option>
-            </select>
-              {paymentMethod === ['momo', 'vnpay'].includes(paymentMethod) && (
+              </select>
+              {isOnlinePayment && (
                   <p className="mt-2 text-xs text-pink-600 dark:text-pink-400">
                     Bạn có 30 phút để hoàn tất kể từ lúc bấm thanh toán.
                   </p>
@@ -407,12 +452,20 @@ export default function BuyNowModal({ product, isOpen, onClose, onOrderCreated }
               </label>
               <input
                   type="tel"
+                  inputMode="tel"
+                  maxLength={12}
                   value={shippingAddress.phone}
-                  onChange={(e) => setShippingAddress({...shippingAddress, phone: e.target.value})}
+                  onChange={handlePhoneChange}
+                  onBlur={handlePhoneBlur}
                   placeholder="Nhập số điện thoại..."
-                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                  className={`w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
+                      phoneError ? 'border-red-500 dark:border-red-500' : 'dark:border-gray-600'
+                  }`}
                   required
               />
+              {phoneError && (
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1.5">{phoneError}</p>
+              )}
             </div>
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
