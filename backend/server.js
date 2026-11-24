@@ -37,9 +37,9 @@ const couponRoutes = require('./routes/coupon').router;
 const couponAdminRoutes = require('./routes/coupon').adminRouter;
 const shipperRoutes = require('./routes/shipper');
 const sellerBankQRRoutes = require('./routes/sellerBankQR');
-//const sellerTrustRoutes = require('./routes/sellerTrust');
+const sellerTrustRoutes = require('./routes/sellerTrust');
 const vipRoutes = require('./routes/vip');
-
+const cartRoutes = require('./routes/cart');
 
 const app = express();
 const server = http.createServer(app);
@@ -186,9 +186,9 @@ app.use('/api/coupons', couponRoutes);
 app.use('/api/admin/coupons', couponAdminRoutes);
 app.use('/api/shipper', shipperRoutes);
 app.use('/api/seller-bankqr', sellerBankQRRoutes);
-//app.use('/api/seller-trust', sellerTrustRoutes);
+app.use('/api/seller-trust', sellerTrustRoutes);
 app.use('/api/vip', vipRoutes);
-app.use('/api/cart', require('./routes/cartRoutes'))
+app.use('/api/cart', cartRoutes);
 // Health check
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });
