@@ -9,6 +9,11 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true
+      },
+      // Ảnh seed lưu local trong backend/uploads, đi qua proxy để cùng nguồn với trang web
+      '/uploads': {
+        target: 'http://localhost:5000',
+        changeOrigin: true
       }
     }
   }

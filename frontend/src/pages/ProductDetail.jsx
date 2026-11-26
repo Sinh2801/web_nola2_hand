@@ -436,8 +436,8 @@ export default function ProductDetail() {
                                 {isFavorite ? '❤️ Đã lưu' : '🤍 Yêu thích'}
                               </button>
                               <button
-                                  onClick={() => {
-                                    const result = addToCompare(id);
+                                  onClick={async () => {
+                                    const result = await addToCompare(id);
                                     setToastTitle(result.success ? 'Đã thêm thành công' : 'Không thể thêm');
                                     setToastType(result.success ? 'success' : 'warning');
                                     setToastMessage(result.message);

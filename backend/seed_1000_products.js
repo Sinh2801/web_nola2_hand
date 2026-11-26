@@ -41,6 +41,8 @@ const MIN_POOL_WARN = 8; // cảnh báo nếu một món có ít hơn số ảnh
 const CACHE_FILE = path.join(__dirname, '.pixabay-cache.json');
 const CACHE_TTL = 24 * 60 * 60 * 1000; // Pixabay yêu cầu cache 24h
 const UPLOAD_DIR = path.join(__dirname, 'uploads', 'seed');
+// Thư viện ảnh đã tải: lưu tên file cho từng món, các lần chạy sau dùng lại, KHÔNG cần mạng / API key
+const LIBRARY_FILE = path.join(UPLOAD_DIR, 'library.json');
 
 // Ảnh có các tag này bị loại (muốn ảnh đồ vật, không phải ảnh người mẫu)
 const PEOPLE_WORDS = [
@@ -443,6 +445,7 @@ function saveCache() {
 async function fetchHits(query) {
     const c = cache[query];
     if (c && Date.now() - c.time < CACHE_TTL) return c.hits;
+    if (!PIXABAY_KEY) throw new Error('thiếu PIXABAY_API_KEY');
 
     const params = new URLSearchParams({
         key: PIXABAY_KEY,
@@ -479,50 +482,116 @@ function filterHits(hits, item) {
         if (!hasAny(tagsLower, words, item.must)) continue;
         if (hasAny(tagsLower, words, item.exclude || [])) continue;
         if (!item.allowPeople && hasAny(tagsLower, words, PEOPLE_WORDS)) continue;
-        result.push(h.url);
+        result.push({ id: h.id, url: h.url });
         if (result.length >= POOL_SIZE) break;
     }
     return result;
 }
 
-// Gom ảnh cho một món: query chính trước, thiếu thì thử thêm query dự phòng (item.alt)
+// Gom ảnh cho một món: query chính trước, thiếu thì thử thêm query dự phòng (item.alt). Trả về [{ id, url }]
 async function collectImages(item) {
     const queries = [item.query, ...(item.alt || [])];
-    const urls = [];
+    const found = [];
     const seen = new Set();
     for (const q of queries) {
-        if (urls.length >= POOL_SIZE) break;
+        if (found.length >= POOL_SIZE) break;
         try {
             const hits = await fetchHits(q);
-            for (const u of filterHits(hits, item)) {
-                if (seen.has(u)) continue;
-                seen.add(u);
-                urls.push(u);
-                if (urls.length >= POOL_SIZE) break;
+            for (const h of filterHits(hits, item)) {
+                if (seen.has(h.id)) continue;
+                seen.add(h.id);
+                found.push(h);
+                if (found.length >= POOL_SIZE) break;
             }
         } catch (e) {
             console.warn(`   ⚠️ Lỗi tìm ảnh "${q}" (${item.name}): ${e.message}`);
         }
     }
-    return urls;
+    return found;
 }
 
-// Tải ảnh về uploads/seed, trả về đường dẫn nội bộ (hoặc null nếu lỗi)
-async function downloadImage(url) {
-    const name = crypto.createHash('md5').update(url).digest('hex').slice(0, 16) + '.jpg';
+// ==========================================
+// THƯ VIỆN ẢNH LOCAL (tải 1 lần, dùng mãi)
+// ==========================================
+let library = {};
+try {
+    library = JSON.parse(fs.readFileSync(LIBRARY_FILE, 'utf8'));
+} catch (_) {
+    library = {};
+}
+
+function saveLibrary() {
+    try {
+        fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+        fs.writeFileSync(LIBRARY_FILE, JSON.stringify(library, null, 1));
+    } catch (_) { /* bỏ qua lỗi ghi thư viện */ }
+}
+
+// Đường dẫn lưu vào DB. IMAGE_BASE_URL để trống thì là đường dẫn tương đối /uploads/seed/xxx.jpg
+const toPublic = (file) => `${IMAGE_BASE_URL}/uploads/seed/${file}`;
+
+// Các file ảnh của một món còn tồn tại trên đĩa
+function libraryGet(name) {
+    return (library[name] || []).filter((f) => {
+        try { return fs.statSync(path.join(UPLOAD_DIR, f)).size > 1024; } catch (_) { return false; }
+    });
+}
+
+// Tải ảnh về uploads/seed. Tên file theo id Pixabay nên ổn định, đã có file thì không tải lại.
+async function downloadImage(h) {
+    const name = `pb-${h.id}.jpg`;
     const file = path.join(UPLOAD_DIR, name);
     try {
-        if (!fs.existsSync(file)) {
-            const res = await fetch(url);
+        if (fs.statSync(file).size > 1024) return name;
+    } catch (_) { /* chưa có file */ }
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            const res = await fetch(h.url);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            fs.writeFileSync(file, Buffer.from(await res.arrayBuffer()));
+            const buf = Buffer.from(await res.arrayBuffer());
+            if (buf.length < 1024) throw new Error('ảnh rỗng');
+            fs.writeFileSync(file, buf);
             await sleep(150);
+            return name;
+        } catch (e) {
+            if (attempt === 3) {
+                console.warn(`     ⚠️ Không tải được ảnh ${h.id}: ${e.message}`);
+                return null;
+            }
+            await sleep(500 * attempt);
         }
-        return `${IMAGE_BASE_URL}/uploads/seed/${name}`;
-    } catch (e) {
-        console.warn(`     ⚠️ Không tải được ảnh: ${e.message}`);
-        return null;
     }
+    return null;
+}
+
+// Ảnh minh họa dạng SVG (lưu local) dùng khi không tải được ảnh thật, để sản phẩm không bao giờ bị vỡ ảnh
+const CATEGORY_EMOJI = {
+    'Sách': '📚', 'Điện tử': '💻', 'Quần áo': '👕', 'Nội thất': '🪑',
+    'Văn phòng phẩm': '✏️', 'Thể thao': '🏀', 'Khác': '📦'
+};
+const slugify = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const xmlEscape = (str) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function makePlaceholders(item, category) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    const emoji = CATEGORY_EMOJI[category] || '📦';
+    return [24, 200, 150, 280].map((hue, i) => {
+        const name = `ph-${slugify(item.name)}-${i + 1}.svg`;
+        const file = path.join(UPLOAD_DIR, name);
+        if (!fs.existsSync(file)) {
+            fs.writeFileSync(file,
+                `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">` +
+                `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">` +
+                `<stop offset="0" stop-color="hsl(${hue} 85% 62%)"/><stop offset="1" stop-color="hsl(${hue + 30} 80% 45%)"/>` +
+                `</linearGradient></defs><rect width="640" height="640" fill="url(#g)"/>` +
+                `<text x="320" y="320" font-size="160" text-anchor="middle">${emoji}</text>` +
+                `<text x="320" y="440" font-size="42" font-weight="700" fill="#fff" text-anchor="middle" font-family="Arial, sans-serif">${xmlEscape(item.name)}</text>` +
+                `</svg>`);
+        }
+        return toPublic(name);
+    });
 }
 
 // ==========================================
@@ -531,8 +600,7 @@ async function downloadImage(url) {
 const runSeeder = async () => {
     try {
         if (!PIXABAY_KEY) {
-            console.log('❌ Thiếu PIXABAY_API_KEY trong file .env. Lấy key ở https://pixabay.com/api/docs/');
-            process.exit(1);
+            console.log('ℹ️ Không có PIXABAY_API_KEY: chỉ dùng ảnh đã tải sẵn trong uploads/seed, món nào thiếu sẽ dùng ảnh minh họa.');
         }
 
         await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nola2hand');
@@ -556,27 +624,45 @@ const runSeeder = async () => {
         const pools = [];
         for (const [category, items] of Object.entries(categoryData)) {
             for (const item of items) {
-                let images = await collectImages(item);
+                let images = [];
+                let fromLibrary = false;
 
-                if (DOWNLOAD_IMAGES && images.length > 0) {
+                if (DOWNLOAD_IMAGES) {
                     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-                    const local = [];
-                    for (const u of images) {
-                        const p = await downloadImage(u);
-                        if (p) local.push(p);
+                    let files = libraryGet(item.name);
+                    if (files.length >= MIN_IMAGES) {
+                        fromLibrary = true; // đã tải trước đó: không cần mạng
+                    } else {
+                        const hits = await collectImages(item);
+                        files = [];
+                        for (const h of hits) {
+                            const f = await downloadImage(h);
+                            if (f) files.push(f);
+                        }
+                        if (files.length >= MIN_IMAGES) {
+                            library[item.name] = files;
+                            saveLibrary();
+                        }
                     }
-                    images = local;
+                    if (files.length >= MIN_IMAGES) {
+                        images = files.map(toPublic);
+                    } else {
+                        images = makePlaceholders(item, category);
+                        console.log(`     🎨 Không tải được ảnh thật cho "${item.name}", dùng ảnh minh họa.`);
+                    }
+                } else {
+                    images = (await collectImages(item)).map((h) => h.url);
                 }
 
                 const warn = images.length < MIN_POOL_WARN ? '  ⚠️ ít ảnh, nên đổi query' : '';
-                console.log(`   • ${item.name}: ${images.length} ảnh${warn}`);
+                console.log(`   • ${item.name}: ${images.length} ảnh${fromLibrary ? ' (thư viện local)' : ''}${warn}`);
 
                 if (images.length >= MIN_IMAGES) {
                     pools.push({ category, item, images });
                 } else {
                     console.log(`     ❌ Bỏ qua "${item.name}" vì chưa đủ ${MIN_IMAGES} ảnh khớp. Đổi query/must/exclude của món này rồi chạy lại.`);
                 }
-                await sleep(300);
+                if (!fromLibrary) await sleep(300);
             }
         }
 
